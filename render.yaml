@@ -1,0 +1,64 @@
+# Render deployment configuration for Face Recognition Attendance System
+# This file defines both frontend and backend services
+
+services:
+  # Backend API Service (FastAPI)
+  - type: web
+    name: face-recognition-backend
+    env: python
+    region: oregon # Choose region closest to your users
+    buildCommand: |
+      cd backend
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      python main.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.9.18"
+      - key: SUPABASE_URL
+        sync: false # Set this in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # Set this in Render dashboard
+      - key: FRONTEND_URL
+        sync: false # Set this to your frontend URL
+
+  # Frontend Static Site (Next.js)
+  - type: web
+    name: face-recognition-frontend
+    env: static
+    region: oregon # Same region as backend
+    buildCommand: |
+      npm install
+      npm run build
+    staticPublishPath: ./out
+    envVars:
+      - key: NODE_VERSION
+        value: "18.17.0"
+      - key: NEXT_PUBLIC_FIREBASE_API_KEY
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_FIREBASE_APP_ID
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false # Set this in Render dashboard
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # Set this to your backend URL
+
+# Database (if you want to use Render PostgreSQL instead of Supabase)
+# databases:
+#   - name: face-recognition-db
+#     databaseName: attendance_system
+#     user: admin
+#     region: oregon

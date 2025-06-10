@@ -36,10 +36,27 @@ load_dotenv()
 
 app = FastAPI(title="Face Recognition API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - Updated for production deployment
+allowed_origins = [
+    "http://localhost:3000",  # Development
+    "https://localhost:3000",  # Development HTTPS
+]
+
+# Add production origins from environment variable
+if os.getenv("FRONTEND_URL"):
+    allowed_origins.append(os.getenv("FRONTEND_URL"))
+
+# Add common Render frontend patterns
+frontend_url_patterns = [
+    "https://face-recognition-frontend.onrender.com",
+    "https://face-recognition-attendance.onrender.com",
+    "https://attendance-system.onrender.com"
+]
+allowed_origins.extend(frontend_url_patterns)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -2240,4 +2257,14 @@ async def get_current_slot():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # Get port from environment variable (Render sets this automatically)
+    port = int(os.environ.get("PORT", 8000))
+
+    # Run the server
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        log_level="info"
+    )
