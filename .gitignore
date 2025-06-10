@@ -200,11 +200,16 @@ encodings/
 backend/encodings/
 backend/temp/
 temp/
+out/
 
 # Face recognition data
 *.pkl
 *.dat
 face_encodings/
+
+# Test files (if recreated)
+test_*.py
+*_test.py
 
 # Database files
 *.db
