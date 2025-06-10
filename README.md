@@ -1,6 +1,6 @@
-# Face Recognition Attendance System
+# Smart Attendance System
 
-A comprehensive attendance management system using advanced face recognition technology with anti-spoofing liveness detection. Built with React (Next.js), Firebase Authentication, Supabase database, and Python FastAPI backend.
+A comprehensive face recognition-based attendance management system built with Next.js, FastAPI, and Supabase. The system features real-time face recognition, class management, timetable scheduling, and attendance tracking with anti-spoofing capabilities.
 
 ## 🚀 Features
 
