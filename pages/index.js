@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../src/contexts/AuthContext';
 import { Camera, Users, Shield, BarChart3, Clock, CheckCircle, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function Home() {

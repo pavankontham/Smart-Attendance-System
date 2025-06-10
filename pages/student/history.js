@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { Calendar, CheckCircle, XCircle, Filter, TrendingUp, BarChart3, Clock, Search, RotateCcw, Download } from 'lucide-react';
 
 export default function AttendanceHistory() {
@@ -373,3 +373,4 @@ export default function AttendanceHistory() {
     </Layout>
   );
 }
+

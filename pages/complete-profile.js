@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../contexts/AuthContext';
-import { dbHelpers } from '../lib/supabase';
+import { useAuth } from '../src/contexts/AuthContext';
+import { dbHelpers } from '../src/lib/supabase';
 import toast from 'react-hot-toast';
 import { Camera, User, Users, Sparkles, ArrowRight, UserPlus } from 'lucide-react';
-import SubjectInput from '../components/SubjectInput';
+import SubjectInput from '../src/components/SubjectInput';
 
 export default function CompleteProfile() {
   const [formData, setFormData] = useState({

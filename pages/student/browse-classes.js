@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import Layout from '../../components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import Layout from '../../src/components/Layout';
 import { toast } from 'react-hot-toast';
-import { dbHelpers } from '../../lib/supabase';
+import { dbHelpers } from '../../src/lib/supabase';
 import { BookOpen } from 'lucide-react';
 
 export default function BrowseClasses() {
@@ -324,3 +324,4 @@ export default function BrowseClasses() {
     </Layout>
   );
 }
+

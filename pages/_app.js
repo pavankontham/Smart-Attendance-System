@@ -1,5 +1,5 @@
 import '../styles/globals.css';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider } from '../src/contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
 function MyApp({ Component, pageProps }) {

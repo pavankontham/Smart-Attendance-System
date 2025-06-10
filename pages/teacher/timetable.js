@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import toast from 'react-hot-toast';
 import { Clock, Calendar, BookOpen, Users, Coffee, Edit3 } from 'lucide-react';
 
@@ -399,3 +399,4 @@ function AssignClassModal({ slot, classes, onClose, onAssign }) {
     </div>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { Users, Search, CheckCircle, XCircle, Calendar, User, Eye, X, UserCheck, Filter } from 'lucide-react';
 
 export default function ManageStudents() {
@@ -408,3 +408,4 @@ export default function ManageStudents() {
     </Layout>
   );
 }
+

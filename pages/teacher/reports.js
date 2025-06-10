@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { Calendar, Download, Filter, CheckCircle, XCircle, BarChart3, TrendingUp } from 'lucide-react';
 
 export default function AttendanceReports() {
@@ -404,3 +404,4 @@ export default function AttendanceReports() {
     </Layout>
   );
 }
+

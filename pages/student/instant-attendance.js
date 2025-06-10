@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Layout from '../../components/Layout';
+import Layout from '../../src/components/Layout';
 import Webcam from 'react-webcam';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { Timer, Key, CheckCircle, AlertCircle, Clock, Camera, ArrowLeft, Shield, Sparkles, Eye, RotateCcw } from 'lucide-react';
@@ -712,3 +712,4 @@ export default function StudentInstantAttendance() {
     </Layout>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { User, Mail, Calendar, Shield, Eye, Trash2, CheckCircle, AlertCircle, BookOpen, Edit3, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -419,3 +419,4 @@ export default function StudentProfile() {
     </Layout>
   );
 }
+

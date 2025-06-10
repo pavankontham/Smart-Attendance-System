@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { User, Camera, Upload, Save, Edit3, Mail, Calendar, Shield, BookOpen, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import SubjectInput from '../../components/SubjectInput';
+import SubjectInput from '../../src/components/SubjectInput';
 
 export default function TeacherProfile() {
   const { currentUser, userProfile, refreshUserProfile } = useAuth();
@@ -517,3 +517,4 @@ export default function TeacherProfile() {
     </Layout>
   );
 }
+

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import toast from 'react-hot-toast';
 import { Plus, Users, BookOpen, Calendar, Settings, Eye, Trash2, Copy, Check, UserPlus } from 'lucide-react';
-import SubjectInput from '../../components/SubjectInput';
+import SubjectInput from '../../src/components/SubjectInput';
 
 export default function TeacherClasses() {
   const { currentUser, userProfile } = useAuth();
@@ -591,3 +591,4 @@ function AddStudentsModal({ classData, onClose, onSubmit }) {
     </div>
   );
 }
+

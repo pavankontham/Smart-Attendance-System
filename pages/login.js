@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useAuth } from '../contexts/AuthContext';
-import { dbHelpers } from '../lib/supabase';
+import { useAuth } from '../src/contexts/AuthContext';
+import { dbHelpers } from '../src/lib/supabase';
 import toast from 'react-hot-toast';
 import { Camera, Eye, EyeOff, Sparkles, ArrowRight } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '../src/lib/firebase';
 
 export default function Login() {
   const [formData, setFormData] = useState({

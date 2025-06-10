@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import { Calendar, Camera, CheckCircle, XCircle, Clock, User, TrendingUp, Award, Target, Timer } from 'lucide-react';
 import Link from 'next/link';
 
@@ -280,3 +280,4 @@ export default function StudentDashboard() {
     </Layout>
   );
 }
+

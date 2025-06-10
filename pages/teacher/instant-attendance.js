@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-import { useAuth } from '../../contexts/AuthContext';
-import { dbHelpers } from '../../lib/supabase';
+import Layout from '../../src/components/Layout';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { dbHelpers } from '../../src/lib/supabase';
 import toast from 'react-hot-toast';
 import { Clock, Users, Key, RefreshCw, CheckCircle, XCircle, Timer, Copy } from 'lucide-react';
 
@@ -394,3 +394,4 @@ export default function InstantAttendance() {
     </Layout>
   );
 }
+

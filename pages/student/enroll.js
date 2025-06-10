@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Layout from '../../components/Layout';
+import Layout from '../../src/components/Layout';
 import Webcam from 'react-webcam';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { CheckCircle, AlertCircle, Camera, Trash2, Eye, X, Sparkles, Shield, Zap, UserCheck, RotateCcw } from 'lucide-react';
@@ -780,3 +780,4 @@ export default function EnrollFace() {
     </Layout>
   );
 }
+
