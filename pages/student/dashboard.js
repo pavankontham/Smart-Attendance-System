@@ -45,6 +45,7 @@ export default function StudentDashboard() {
 
       // Calculate stats
       const presentDays = monthData?.filter(record => record.status === 'present').length || 0;
+      const absentDays = monthData?.filter(record => record.status === 'absent').length || 0;
       const totalDays = monthData?.length || 0;
       const percentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
@@ -54,7 +55,7 @@ export default function StudentDashboard() {
         thisMonth: monthData || [],
         stats: {
           present: presentDays,
-          absent: totalDays - presentDays,
+          absent: absentDays,
           total: totalDays,
           percentage
         }
@@ -216,7 +217,7 @@ export default function StudentDashboard() {
         {/* Quick Actions */}
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Link href="/student/instant-attendance" className="group flex items-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:shadow-lg transition-all transform hover:scale-105">
               <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                 <Timer className="h-6 w-6 text-white" />
@@ -227,13 +228,23 @@ export default function StudentDashboard() {
               </div>
             </Link>
 
-            <Link href="/student/history" className="group flex items-center p-6 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl hover:shadow-lg transition-all transform hover:scale-105">
+            <Link href="/student/timetable" className="group flex items-center p-6 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl hover:shadow-lg transition-all transform hover:scale-105">
               <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="font-bold text-gray-900 text-lg">My Timetable</div>
+                <div className="text-green-600">View class schedule</div>
+              </div>
+            </Link>
+
+            <Link href="/student/history" className="group flex items-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl hover:shadow-lg transition-all transform hover:scale-105">
+              <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                 <Calendar className="h-6 w-6 text-white" />
               </div>
               <div>
                 <div className="font-bold text-gray-900 text-lg">View History</div>
-                <div className="text-green-600">Check past attendance</div>
+                <div className="text-orange-600">Check past attendance</div>
               </div>
             </Link>
 
@@ -262,12 +273,17 @@ export default function StudentDashboard() {
                     ) : (
                       <XCircle className="h-5 w-5 text-red-500 mr-3" />
                     )}
-                    <span className="font-medium">
-                      {new Date(record.date).toLocaleDateString()}
-                    </span>
+                    <div>
+                      <div className="font-medium">
+                        {new Date(record.attendance_date).toLocaleDateString()}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {record.class_name} • Slot {record.slot_number}
+                      </div>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-600">
-                    {record.timestamp && new Date(record.timestamp).toLocaleTimeString()}
+                    {record.created_at && new Date(record.created_at).toLocaleTimeString()}
                   </div>
                 </div>
               ))}

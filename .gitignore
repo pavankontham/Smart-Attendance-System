@@ -242,6 +242,40 @@ coverage.xml
 *.py,cover
 .hypothesis/
 
+# Deployment specific
+render.yaml
+vercel.json
+netlify.toml
+
+# Security and sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+secrets.json
+config.json
+
+# Application specific
+uploads/
+temp_uploads/
+profile_photos/
+face_data/
+models/
+checkpoints/
+
+# Cache directories
+.cache/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# IDE and editor files
+*.sublime-project
+*.sublime-workspace
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
 # Translations
 *.mo
 *.pot

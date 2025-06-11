@@ -1,7 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Camera, LogOut, User, Users, Calendar, Settings, BarChart3, Upload, BookOpen, Clock, Timer } from 'lucide-react';
+import { Camera, LogOut, User, Users, Calendar, Settings, BarChart3, Upload, BookOpen, Clock, Timer, Menu, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useState, useEffect, useRef } from 'react';
 import { dbHelpers } from '../lib/supabase';
@@ -11,6 +11,7 @@ export default function Layout({ children }) {
   const router = useRouter();
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [showProfileUpload, setShowProfileUpload] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -73,6 +74,7 @@ export default function Layout({ children }) {
     ...(isStudent ? [
       { name: 'Dashboard', href: '/student/dashboard', icon: User },
       { name: 'My Classes', href: '/student/classes', icon: BookOpen },
+      { name: 'Timetable', href: '/student/timetable', icon: Clock },
       { name: 'Quick Attendance', href: '/student/instant-attendance', icon: Timer },
       { name: 'My Attendance', href: '/student/history', icon: Calendar },
       { name: 'Enroll Face', href: '/student/enroll', icon: Settings },
@@ -95,22 +97,32 @@ export default function Layout({ children }) {
       {/* Enhanced Navigation */}
       <nav className="bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50 sticky top-0 z-40">
         <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href={userProfile.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard'} className="flex items-center hover:opacity-80 transition-opacity cursor-pointer">
-              <div className="relative">
-                <Camera className="h-8 w-8 text-blue-600 mr-3" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              </div>
-              <div>
-                <span className="text-xl font-bold text-gray-900">
-                  Smart Attendance
-                </span>
-                <p className="text-xs text-blue-600 font-medium">AI-Powered Recognition</p>
-              </div>
-            </Link>
+          <div className="flex items-center h-24">
+            {/* Logo Section - Flex Item 1 */}
+            <div className="flex-shrink-0">
+              <Link href={userProfile.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard'} className="flex items-center hover:opacity-80 transition-opacity cursor-pointer">
+                <div className="relative">
+                  <Camera className="h-10 w-10 text-blue-600 mr-4" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                </div>
+                <div className="hidden sm:block">
+                  <span className="text-2xl font-bold text-gray-900">
+                    Smart Attendance
+                  </span>
+                  <p className="text-sm text-blue-600 font-medium">AI-Powered Recognition</p>
+                </div>
+                <div className="sm:hidden">
+                  <span className="text-xl font-bold text-gray-900">
+                    Smart Attendance
+                  </span>
+                </div>
+              </Link>
+            </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-6">
+            {/* Navigation Section - Flex Item 2 (grows to fill space) */}
+            <div className="flex-1 flex justify-center items-center mx-4">
+              {/* Desktop Navigation - All tiles side by side for tablets and laptops (md and above) */}
+              <div className="hidden md:flex items-center justify-center space-x-1 w-full overflow-x-auto">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = router.pathname === item.href;
@@ -118,20 +130,36 @@ export default function Layout({ children }) {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      className={`flex items-center px-2 md:px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
                         isActive
                           ? 'text-blue-600 bg-blue-50 shadow-sm border border-blue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
                       }`}
                     >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {item.name}
+                      <Icon className="h-4 w-4 mr-1 md:mr-2" />
+                      <span className="hidden md:inline">{item.name}</span>
                     </Link>
                   );
                 })}
               </div>
+            </div>
 
-              <div className="flex items-center space-x-4">
+            {/* Right Section - Flex Item 3 */}
+            <div className="flex-shrink-0 flex items-center space-x-2">
+              {/* Mobile menu button - Only for mobile (below md) */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+
+              {/* Profile Section */}
+              <div className="flex items-center space-x-3">
                 {/* Profile Photo and Info */}
                 <div className="flex items-center space-x-3">
                   <div className="relative group">
@@ -139,44 +167,47 @@ export default function Layout({ children }) {
                       <img
                         src={profilePhoto}
                         alt="Profile"
-                        className="w-10 h-10 rounded-full object-cover border-2 border-blue-200 shadow-sm cursor-pointer hover:border-blue-400 transition-all"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-blue-200 shadow-sm cursor-pointer hover:border-blue-400 transition-all"
                         onClick={() => userProfile.role === 'teacher' && setShowProfileUpload(true)}
                       />
                     ) : (
                       <div
-                        className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-2 border-blue-200 cursor-pointer hover:border-blue-400 transition-all"
+                        className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-2 border-blue-200 cursor-pointer hover:border-blue-400 transition-all"
                         onClick={() => userProfile.role === 'teacher' && setShowProfileUpload(true)}
                       >
-                        <User className="h-5 w-5 text-blue-600" />
+                        <User className="h-6 w-6 text-blue-600" />
                       </div>
                     )}
                     {userProfile.role === 'teacher' && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors"
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors"
                            onClick={() => setShowProfileUpload(true)}>
-                        <Upload className="h-2 w-2 text-white" />
+                        <Upload className="h-3 w-3 text-white" />
                       </div>
                     )}
                   </div>
-                  <Link
-                    href={userProfile.role === 'teacher' ? '/teacher/profile' : '/student/profile'}
-                    className="text-sm hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer"
-                  >
-                    <div className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">{userProfile.name}</div>
-                    <div className="text-gray-500 capitalize flex items-center">
-                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                        userProfile.role === 'teacher' ? 'bg-purple-400' : 'bg-blue-400'
-                      }`}></span>
-                      {userProfile.role}
-                    </div>
-                  </Link>
+                  <div className="hidden sm:block">
+                    <Link
+                      href={userProfile.role === 'teacher' ? '/teacher/profile' : '/student/profile'}
+                      className="text-sm hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer block"
+                    >
+                      <div className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">{userProfile.name}</div>
+                      <div className="text-gray-500 capitalize flex items-center">
+                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                          userProfile.role === 'teacher' ? 'bg-purple-400' : 'bg-blue-400'
+                        }`}></span>
+                        {userProfile.role}
+                      </div>
+                    </Link>
+                  </div>
                 </div>
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200 hover:shadow-sm"
+                  className="hidden sm:flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200 hover:shadow-sm"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  Logout
+                  <span className="hidden md:inline">Logout</span>
+                  <span className="md:hidden">Exit</span>
                 </button>
               </div>
             </div>
@@ -184,29 +215,78 @@ export default function Layout({ children }) {
         </div>
       </nav>
 
-      {/* Enhanced Mobile Navigation */}
-      <div className="md:hidden bg-white/95 backdrop-blur-md border-b border-gray-200/50">
-        <div className="px-4 py-3 space-y-2">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            const isActive = router.pathname === item.href;
-            return (
+      {/* Mobile Navigation Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg">
+          <div className="px-4 py-4 space-y-2">
+            {/* Navigation Items */}
+            <div className="space-y-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = router.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'text-blue-600 bg-blue-50 shadow-sm border border-blue-200'
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 mr-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Mobile Profile Section */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
               <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'text-blue-600 bg-blue-50 shadow-sm border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
-                }`}
+                href={userProfile.role === 'teacher' ? '/teacher/profile' : '/student/profile'}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center px-4 py-3 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200"
               >
-                <Icon className="h-4 w-4 mr-3" />
-                {item.name}
+                <div className="flex items-center">
+                  {profilePhoto ? (
+                    <img
+                      src={profilePhoto}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full object-cover border-2 border-blue-200 mr-3"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-2 border-blue-200 mr-3">
+                      <User className="h-4 w-4 text-blue-600" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-semibold text-gray-900">{userProfile?.name || 'User'}</div>
+                    <div className="text-sm text-gray-500 capitalize flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        userProfile.role === 'teacher' ? 'bg-purple-400' : 'bg-blue-400'
+                      }`}></span>
+                      {userProfile.role}
+                    </div>
+                  </div>
+                </div>
               </Link>
-            );
-          })}
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center w-full px-4 py-3 text-base text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 mt-2"
+              >
+                <LogOut className="h-5 w-5 mr-4" />
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

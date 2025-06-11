@@ -7,10 +7,35 @@ import os
 from typing import Optional
 import json
 from datetime import datetime, timedelta
+import pytz
 from supabase import create_client
 from dotenv import load_dotenv
 import uuid
 import base64
+
+# IST timezone
+IST = pytz.timezone('Asia/Kolkata')
+
+def get_ist_now():
+    """Get current time in IST"""
+    return datetime.now(IST)
+
+def convert_to_12hr_format(time_str):
+    """Convert 24-hour time string to 12-hour format"""
+    if not time_str:
+        return time_str
+
+    try:
+        # Parse the time string
+        if isinstance(time_str, str):
+            time_obj = datetime.strptime(time_str, "%H:%M").time()
+        else:
+            time_obj = time_str
+
+        # Convert to 12-hour format
+        return time_obj.strftime("%I:%M %p").lstrip('0')
+    except:
+        return time_str
 
 # Try to import face recognition, but make it optional for now
 try:
@@ -574,7 +599,8 @@ async def mark_attendance(attendance_data: dict):
             }
 
         db_user_id = user_result.data[0]["id"]
-        today = datetime.now().date().isoformat()
+        ist_now = get_ist_now()
+        today = ist_now.date().isoformat()
 
         # Check if attendance already marked today
         existing_result = supabase.table("attendance").select("*").eq("user_id", db_user_id).eq("date", today).execute()
@@ -590,7 +616,7 @@ async def mark_attendance(attendance_data: dict):
             "user_id": db_user_id,
             "date": today,
             "status": status,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": ist_now.isoformat()
         }).execute()
 
         return {
@@ -606,7 +632,7 @@ async def mark_attendance(attendance_data: dict):
 
 @app.get("/api/attendance/{firebase_id}")
 async def get_user_attendance(firebase_id: str, start_date: str = None, end_date: str = None):
-    """Get attendance records for a user"""
+    """Get attendance records for a user (class-wise attendance)"""
     if not SUPABASE_AVAILABLE:
         return {
             "success": False,
@@ -625,19 +651,136 @@ async def get_user_attendance(firebase_id: str, start_date: str = None, end_date
 
         db_user_id = user_result.data[0]["id"]
 
-        # Build query
-        query = supabase.table("attendance").select("*").eq("user_id", db_user_id).order("date", desc=True)
+        # Build query for class-wise attendance
+        query = supabase.table("attendance").select("*").eq("student_id", db_user_id).order("attendance_date", desc=True)
 
         if start_date:
-            query = query.gte("date", start_date)
+            query = query.gte("attendance_date", start_date)
         if end_date:
-            query = query.lte("date", end_date)
+            query = query.lte("attendance_date", end_date)
 
         result = query.execute()
 
+        # Format the response to include class and teacher information
+        formatted_data = []
+        for record in result.data or []:
+            # Get class info separately
+            class_info = {}
+            teacher_name = "Unknown Teacher"
+            if record.get("class_id"):
+                class_result = supabase.table("classes").select("id, name, subject, teacher_id").eq("id", record["class_id"]).execute()
+                if class_result.data:
+                    class_info = class_result.data[0]
+                    # Get teacher name
+                    if class_info.get("teacher_id"):
+                        teacher_result = supabase.table("users").select("name").eq("id", class_info["teacher_id"]).execute()
+                        if teacher_result.data:
+                            teacher_name = teacher_result.data[0]["name"]
+
+            formatted_data.append({
+                "id": record["id"],
+                "student_id": record["student_id"],
+                "class_id": record["class_id"],
+                "slot_number": record["slot_number"],
+                "day_of_week": record["day_of_week"],
+                "attendance_date": record["attendance_date"],
+                "status": record["status"],
+                "marked_by": record["marked_by"],
+                "created_at": record["created_at"],
+                "class_name": class_info.get("name", "Unknown Class"),
+                "subject": class_info.get("subject", "Unknown Subject"),
+                "teacher_name": teacher_name
+            })
+
         return {
             "success": True,
-            "data": result.data
+            "data": formatted_data
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Database error: {str(e)}"
+        }
+
+@app.get("/api/attendance/all")
+async def get_all_attendance(start_date: str = None, end_date: str = None, teacher_firebase_id: str = None):
+    """Get all attendance records (for teacher dashboard and reports)"""
+    if not SUPABASE_AVAILABLE:
+        return {
+            "success": False,
+            "message": "Database not available"
+        }
+
+    try:
+        # Build query for class-wise attendance
+        query = supabase.table("attendance").select("*").order("attendance_date", desc=True)
+
+        if start_date:
+            query = query.gte("attendance_date", start_date)
+        if end_date:
+            query = query.lte("attendance_date", end_date)
+
+        # If teacher_firebase_id is provided, filter by teacher's classes
+        if teacher_firebase_id:
+            # Get teacher's database ID
+            teacher_result = supabase.table("users").select("id").eq("firebase_id", teacher_firebase_id).execute()
+            if teacher_result.data:
+                teacher_id = teacher_result.data[0]["id"]
+                # Get teacher's classes
+                teacher_classes = supabase.table("classes").select("id").eq("teacher_id", teacher_id).execute()
+                teacher_class_ids = [cls["id"] for cls in teacher_classes.data or []]
+                if teacher_class_ids:
+                    query = query.in_("class_id", teacher_class_ids)
+                else:
+                    # Teacher has no classes, return empty result
+                    return {"success": True, "data": []}
+
+        result = query.execute()
+
+        # Format the response to include student, class and teacher information
+        formatted_data = []
+        for record in result.data or []:
+            # Get student info separately
+            student_info = {}
+            if record.get("student_id"):
+                student_result = supabase.table("users").select("id, name, email, student_id").eq("id", record["student_id"]).execute()
+                if student_result.data:
+                    student_info = student_result.data[0]
+
+            # Get class info separately
+            class_info = {}
+            teacher_name = "Unknown Teacher"
+            if record.get("class_id"):
+                class_result = supabase.table("classes").select("id, name, subject, teacher_id").eq("id", record["class_id"]).execute()
+                if class_result.data:
+                    class_info = class_result.data[0]
+                    # Get teacher name
+                    if class_info.get("teacher_id"):
+                        teacher_result = supabase.table("users").select("name").eq("id", class_info["teacher_id"]).execute()
+                        if teacher_result.data:
+                            teacher_name = teacher_result.data[0]["name"]
+
+            formatted_data.append({
+                "id": record["id"],
+                "student_id": record["student_id"],
+                "class_id": record["class_id"],
+                "slot_number": record["slot_number"],
+                "day_of_week": record["day_of_week"],
+                "attendance_date": record["attendance_date"],
+                "status": record["status"],
+                "marked_by": record["marked_by"],
+                "created_at": record["created_at"],
+                "student_name": student_info.get("name", "Unknown Student"),
+                "student_email": student_info.get("email", ""),
+                "student_roll_id": student_info.get("student_id", ""),
+                "class_name": class_info.get("name", "Unknown Class"),
+                "subject": class_info.get("subject", "Unknown Subject"),
+                "teacher_name": teacher_name
+            })
+
+        return {
+            "success": True,
+            "data": formatted_data
         }
     except Exception as e:
         return {
@@ -654,6 +797,36 @@ async def health_check():
         "face_recognition_available": FACE_RECOGNITION_AVAILABLE,
         "supabase_available": SUPABASE_AVAILABLE
     }
+
+@app.get("/api/users/students")
+async def get_all_students():
+    """Get all students"""
+    try:
+        if not SUPABASE_AVAILABLE:
+            return {
+                "success": True,
+                "data": [
+                    {
+                        "id": 1,
+                        "firebase_id": "demo_student_1",
+                        "name": "John Student",
+                        "email": "john@example.com",
+                        "role": "student",
+                        "student_id": "STU001"
+                    }
+                ]
+            }
+
+        result = supabase.table("users").select("*").eq("role", "student").execute()
+
+        return {
+            "success": True,
+            "data": result.data or []
+        }
+
+    except Exception as e:
+        print(f"Error fetching students: {str(e)}")
+        return {"success": False, "message": f"Failed to fetch students: {str(e)}"}
 
 
 
@@ -792,7 +965,7 @@ async def update_user_profile(firebase_id: str, profile_data: dict):
         # Prepare update data
         update_data = {
             "name": name,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": get_ist_now().isoformat()
         }
 
         # Role-specific validation and updates
@@ -1057,6 +1230,65 @@ async def create_class(class_data: dict):
         print(f"Error creating class: {str(e)}")
         return {"success": False, "message": f"Failed to create class: {str(e)}"}
 
+@app.put("/api/classes/{class_id}")
+async def update_class(class_id: int, class_data: dict):
+    """Update an existing class"""
+    try:
+        name = class_data.get("name")
+        subject = class_data.get("subject")
+        description = class_data.get("description", "")
+        teacher_firebase_id = class_data.get("teacher_firebase_id")
+
+        if not name or not subject or not teacher_firebase_id:
+            return {"success": False, "message": "Missing required fields"}
+
+        if not SUPABASE_AVAILABLE:
+            return {
+                "success": True,
+                "data": {
+                    "id": class_id,
+                    "name": name,
+                    "subject": subject,
+                    "description": description
+                },
+                "message": "Class updated successfully (demo mode)"
+            }
+
+        # Get teacher's database ID
+        teacher_result = supabase.table("users").select("id").eq("firebase_id", teacher_firebase_id).execute()
+        if not teacher_result.data:
+            return {"success": False, "message": "Teacher not found"}
+
+        teacher_id = teacher_result.data[0]["id"]
+
+        # Verify teacher owns the class
+        class_result = supabase.table("classes").select("id").eq("id", class_id).eq("teacher_id", teacher_id).execute()
+        if not class_result.data:
+            return {"success": False, "message": "Unauthorized or class not found"}
+
+        # Update class
+        update_data = {
+            "name": name,
+            "subject": subject,
+            "description": description,
+            "updated_at": get_ist_now().isoformat()
+        }
+
+        result = supabase.table("classes").update(update_data).eq("id", class_id).execute()
+
+        if result.data:
+            return {
+                "success": True,
+                "data": result.data[0],
+                "message": "Class updated successfully"
+            }
+        else:
+            return {"success": False, "message": "Failed to update class"}
+
+    except Exception as e:
+        print(f"Error updating class: {str(e)}")
+        return {"success": False, "message": f"Failed to update class: {str(e)}"}
+
 @app.get("/api/classes/teacher/{teacher_firebase_id}")
 async def get_classes_by_teacher(teacher_firebase_id: str):
     """Get all classes for a teacher"""
@@ -1200,19 +1432,21 @@ async def join_class(join_data: dict):
                 return {"success": False, "message": "You are already enrolled in this class"}
             else:
                 # Update existing enrollment to approved
+                ist_now = get_ist_now()
                 supabase.table("class_enrollments").update({
                     "status": "approved",
-                    "approved_at": datetime.now().isoformat()
+                    "approved_at": ist_now.isoformat()
                 }).eq("id", existing_enrollment.data[0]["id"]).execute()
                 return {"success": True, "message": f"Successfully joined {class_name}"}
 
         # Create new enrollment with approved status (no approval needed)
+        ist_now = get_ist_now()
         enrollment_data = {
             "class_id": class_id,
             "student_id": student_id,
             "status": "approved",
-            "enrolled_at": datetime.now().isoformat(),
-            "approved_at": datetime.now().isoformat()
+            "enrolled_at": ist_now.isoformat(),
+            "approved_at": ist_now.isoformat()
         }
 
         result = supabase.table("class_enrollments").insert(enrollment_data).execute()
@@ -1257,16 +1491,7 @@ async def get_available_classes():
             }
 
         # Get all classes with teacher info and enrollment count
-        result = supabase.table("classes").select("""
-            id,
-            name,
-            subject,
-            description,
-            created_at,
-            users!classes_teacher_id_fkey (
-                name
-            )
-        """).execute()
+        result = supabase.table("classes").select("*").execute()
 
         classes_data = []
         for class_info in result.data or []:
@@ -1274,9 +1499,12 @@ async def get_available_classes():
             enrollment_result = supabase.table("class_enrollments").select("id").eq("class_id", class_info["id"]).eq("status", "approved").execute()
             enrollment_count = len(enrollment_result.data or [])
 
+            # Get teacher name separately
             teacher_name = "Unknown"
-            if class_info.get("users"):
-                teacher_name = class_info["users"]["name"]
+            if class_info.get("teacher_id"):
+                teacher_result = supabase.table("users").select("name").eq("id", class_info["teacher_id"]).execute()
+                if teacher_result.data:
+                    teacher_name = teacher_result.data[0]["name"]
 
             classes_data.append({
                 "id": class_info["id"],
@@ -1314,28 +1542,24 @@ async def get_class_students(class_id: int):
                 ]
             }
 
-        # Get enrollments with student info
-        result = supabase.table("class_enrollments").select("""
-            *,
-            users!class_enrollments_student_id_fkey (
-                id,
-                name,
-                email,
-                student_id
-            )
-        """).eq("class_id", class_id).execute()
+        # Get enrollments first, then get student info separately
+        enrollments_result = supabase.table("class_enrollments").select("*").eq("class_id", class_id).eq("status", "approved").execute()
 
         students = []
-        for enrollment in result.data or []:
-            if enrollment.get("users"):
-                user_data = enrollment["users"]
+        for enrollment in enrollments_result.data or []:
+            # Get student info separately
+            student_result = supabase.table("users").select("id, name, email, student_id, firebase_id").eq("id", enrollment["student_id"]).execute()
+            if student_result.data:
+                user_data = student_result.data[0]
                 students.append({
                     "id": user_data["id"],
                     "name": user_data["name"],
                     "email": user_data["email"],
                     "student_id": user_data["student_id"],
+                    "firebase_id": user_data["firebase_id"],
                     "status": enrollment["status"],
-                    "enrolled_at": enrollment["enrolled_at"]
+                    "enrolled_at": enrollment["enrolled_at"],
+                    "created_at": user_data.get("created_at")
                 })
 
         return {
@@ -1374,7 +1598,7 @@ async def approve_student_join_request(class_id: int, approval_data: dict):
         # Update enrollment status
         result = supabase.table("class_enrollments").update({
             "status": "approved",
-            "approved_at": datetime.now().isoformat(),
+            "approved_at": get_ist_now().isoformat(),
             "approved_by": teacher_id
         }).eq("class_id", class_id).eq("student_id", student_id).execute()
 
@@ -1563,12 +1787,16 @@ async def get_timetable_by_teacher(teacher_firebase_id: str):
             slots_result = supabase.table("timetable_slots").select("*").eq("class_id", class_id).execute()
 
             for slot in slots_result.data or []:
+                # Convert times to 12-hour format
+                start_time_12hr = convert_to_12hr_format(slot["start_time"])
+                end_time_12hr = convert_to_12hr_format(slot["end_time"])
+
                 teacher_slots.append({
                     "id": slot["id"],
                     "day_of_week": slot["day_of_week"],
                     "slot_number": slot["slot_number"],
-                    "start_time": slot["start_time"],
-                    "end_time": slot["end_time"],
+                    "start_time": start_time_12hr,
+                    "end_time": end_time_12hr,
                     "class": {
                         "id": class_info["id"],
                         "name": class_info["name"],
@@ -1730,7 +1958,8 @@ async def generate_instant_password(request_data: dict):
         # Generate 6-digit password
         import random
         password = str(random.randint(100000, 999999))
-        expires_at = datetime.now() + timedelta(minutes=3)
+        ist_now = get_ist_now()
+        expires_at = ist_now + timedelta(minutes=3)
 
         # Store in memory (in production, use Redis with TTL)
         instant_passwords[password] = {
@@ -1738,7 +1967,7 @@ async def generate_instant_password(request_data: dict):
             "slot_number": slot_number,
             "teacher_id": teacher_id,
             "expires_at": expires_at,
-            "created_at": datetime.now()
+            "created_at": ist_now
         }
 
         return {
@@ -1847,8 +2076,9 @@ async def validate_instant_password(request_data: dict):
 
         password_data = instant_passwords[password]
 
-        # Check if password has expired
-        if datetime.now() > password_data["expires_at"]:
+        # Check if password has expired (using IST)
+        ist_now = get_ist_now()
+        if ist_now > password_data["expires_at"]:
             # Clean up expired password
             try:
                 del instant_passwords[password]
@@ -2036,9 +2266,10 @@ async def mark_instant_attendance(request_data: dict):
                     print(f"Failed to auto-approve student during attendance: {approve_error}")
                     return {"success": False, "message": "Your enrollment in this class is pending approval."}
 
-        # Get current day of week and date
-        today = datetime.now().date()
-        day_of_week = datetime.now().weekday() + 1  # Convert to 1-7 format
+        # Get current day of week and date in IST
+        ist_now = get_ist_now()
+        today = ist_now.date()
+        day_of_week = ist_now.weekday() + 1  # Convert to 1-7 format
         slot_number = password_data["slot_number"]
 
         # Check if attendance already marked for this slot today
@@ -2060,7 +2291,7 @@ async def mark_instant_attendance(request_data: dict):
             "attendance_date": today.isoformat(),
             "status": "present",
             "marked_by": "instant_password",
-            "created_at": datetime.now().isoformat()
+            "created_at": ist_now.isoformat()
         }
 
         try:
@@ -2075,7 +2306,7 @@ async def mark_instant_attendance(request_data: dict):
                     "student_name": student_name,
                     "status": "present",
                     "slot_number": slot_number,
-                    "marked_at": datetime.now().isoformat()
+                    "marked_at": ist_now.isoformat()
                 },
                 "message": f"Attendance marked successfully for {student_name} (Slot {slot_number})"
             }
@@ -2098,6 +2329,9 @@ async def mark_manual_attendance(request_data: dict):
         slot_number = request_data.get("slot_number", 1)  # Default to slot 1 if not provided
         status = request_data.get("status", "present")
         teacher_firebase_id = request_data.get("teacher_firebase_id")
+
+        if not student_firebase_id or not class_id or not teacher_firebase_id:
+            return {"success": False, "message": "Missing required fields"}
 
         if not SUPABASE_AVAILABLE:
             return {
@@ -2125,9 +2359,10 @@ async def mark_manual_attendance(request_data: dict):
         student_id = student_result.data[0]["id"]
         student_name = student_result.data[0]["name"]
 
-        # Get current day of week and date
-        today = datetime.now().date()
-        day_of_week = datetime.now().weekday() + 1  # Convert to 1-7 format
+        # Get current day of week and date in IST
+        ist_now = get_ist_now()
+        today = ist_now.date()
+        day_of_week = ist_now.weekday() + 1  # Convert to 1-7 format
 
         # Check if attendance already marked for this slot today
         existing_attendance = supabase.table("attendance").select("id").eq("student_id", student_id).eq("class_id", class_id).eq("slot_number", slot_number).eq("attendance_date", today.isoformat()).execute()
@@ -2137,7 +2372,7 @@ async def mark_manual_attendance(request_data: dict):
             result = supabase.table("attendance").update({
                 "status": status,
                 "marked_by": "teacher",
-                "updated_at": datetime.now().isoformat()
+                "updated_at": ist_now.isoformat()
             }).eq("id", existing_attendance.data[0]["id"]).execute()
         else:
             # Create new attendance record
@@ -2149,7 +2384,7 @@ async def mark_manual_attendance(request_data: dict):
                 "attendance_date": today.isoformat(),
                 "status": status,
                 "marked_by": "teacher",
-                "created_at": datetime.now().isoformat()
+                "created_at": ist_now.isoformat()
             }
             result = supabase.table("attendance").insert(attendance_data).execute()
 
@@ -2160,7 +2395,7 @@ async def mark_manual_attendance(request_data: dict):
                     "student_name": student_name,
                     "status": status,
                     "slot_number": slot_number,
-                    "marked_at": datetime.now().isoformat()
+                    "marked_at": ist_now.isoformat()
                 },
                 "message": f"Attendance marked as {status} for {student_name} (Slot {slot_number})"
             }
@@ -2212,28 +2447,122 @@ async def check_attendance(student_firebase_id: str, class_id: int, date: str, s
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to check attendance: {str(e)}")
 
+@app.get("/api/timetables/student/{student_firebase_id}")
+async def get_timetable_by_student(student_firebase_id: str):
+    """Get timetable for a student's enrolled classes"""
+    try:
+        if not SUPABASE_AVAILABLE:
+            return {
+                "success": True,
+                "data": [
+                    {
+                        "id": 1,
+                        "class_id": 1,
+                        "class_name": "Mathematics 101",
+                        "subject": "Mathematics",
+                        "teacher_name": "John Doe",
+                        "day_of_week": 1,
+                        "slot_number": 1,
+                        "start_time": "09:00 AM",
+                        "end_time": "09:50 AM"
+                    }
+                ]
+            }
+
+        # Get student's database ID
+        student_result = supabase.table("users").select("id").eq("firebase_id", student_firebase_id).execute()
+        if not student_result.data:
+            return {"success": False, "message": "Student not found"}
+
+        student_id = student_result.data[0]["id"]
+
+        # Get student's enrolled classes
+        student_classes_result = supabase.table("class_enrollments").select("class_id").eq("student_id", student_id).execute()
+        student_class_ids = [item["class_id"] for item in student_classes_result.data] if student_classes_result.data else []
+
+        if not student_class_ids:
+            return {
+                "success": True,
+                "data": []
+            }
+
+        # Get timetable for student's enrolled classes with proper joins
+        formatted_data = []
+
+        for class_id in student_class_ids:
+            # Get class information first
+            class_result = supabase.table("classes").select("id, name, subject, teacher_id").eq("id", class_id).execute()
+
+            if not class_result.data:
+                continue
+
+            class_info = class_result.data[0]
+            teacher_id = class_info.get("teacher_id")
+
+            # Get teacher information separately
+            teacher_name = "Unknown"
+            if teacher_id:
+                teacher_result = supabase.table("users").select("name").eq("id", teacher_id).execute()
+                if teacher_result.data:
+                    teacher_name = teacher_result.data[0].get("name", "Unknown")
+
+            # Get timetable slots for this class
+            slots_result = supabase.table("timetable_slots").select("""
+                id, day_of_week, slot_number, start_time, end_time
+            """).eq("class_id", class_id).execute()
+
+            if slots_result.data:
+                for slot in slots_result.data:
+                    # Convert times to 12-hour format
+                    start_time_12hr = convert_to_12hr_format(slot["start_time"])
+                    end_time_12hr = convert_to_12hr_format(slot["end_time"])
+
+                    formatted_slot = {
+                        "id": slot["id"],
+                        "class_id": class_id,
+                        "class_name": class_info.get("name", "Unknown"),
+                        "subject": class_info.get("subject", "Unknown"),
+                        "teacher_name": teacher_name,
+                        "day_of_week": slot["day_of_week"],
+                        "slot_number": slot["slot_number"],
+                        "start_time": start_time_12hr,
+                        "end_time": end_time_12hr
+                    }
+                    formatted_data.append(formatted_slot)
+
+        return {
+            "success": True,
+            "data": formatted_data
+        }
+
+    except Exception as e:
+        print(f"Error fetching student timetable: {str(e)}")
+        return {"success": False, "message": f"Failed to fetch timetable: {str(e)}"}
+
 @app.get("/api/current-slot")
 async def get_current_slot():
-    """Get the current time slot based on the current time"""
+    """Get the current time slot based on the current time in IST"""
     try:
-        current_time = datetime.now().time()
-        current_day = datetime.now().weekday() + 1  # Convert to 1-7 format
+        # Get current time in IST
+        ist_now = get_ist_now()
+        current_time = ist_now.time()
+        current_day = ist_now.weekday() + 1  # Convert to 1-7 format
 
-        # Define slot times (9 slots from 9:00 AM to 5:00 PM)
+        # Define slot times (9 slots from 9:00 AM to 5:00 PM) in 12-hour format
         slot_times = [
-            ("09:00", "09:50", 1),  # Slot 1
-            ("09:50", "10:40", 2),  # Slot 2
-            ("10:50", "11:40", 3),  # Slot 3 (after first recess)
-            ("11:40", "12:30", 4),  # Slot 4
-            ("12:30", "13:20", 5),  # Slot 5
-            ("13:20", "14:10", 6),  # Slot 6 (after lunch break)
-            ("14:10", "15:00", 7),  # Slot 7
-            ("15:10", "16:00", 8),  # Slot 8 (after second recess)
-            ("16:00", "16:50", 9),  # Slot 9
+            ("09:00", "09:50", 1, "9:00 AM", "9:50 AM"),  # Slot 1
+            ("09:50", "10:40", 2, "9:50 AM", "10:40 AM"),  # Slot 2
+            ("10:50", "11:40", 3, "10:50 AM", "11:40 AM"),  # Slot 3 (after first recess)
+            ("11:40", "12:30", 4, "11:40 AM", "12:30 PM"),  # Slot 4
+            ("12:30", "13:20", 5, "12:30 PM", "1:20 PM"),  # Slot 5
+            ("13:20", "14:10", 6, "1:20 PM", "2:10 PM"),  # Slot 6 (after lunch break)
+            ("14:10", "15:00", 7, "2:10 PM", "3:00 PM"),  # Slot 7
+            ("15:10", "16:00", 8, "3:10 PM", "4:00 PM"),  # Slot 8 (after second recess)
+            ("16:00", "16:50", 9, "4:00 PM", "4:50 PM"),  # Slot 9
         ]
 
         current_slot = None
-        for start_time_str, end_time_str, slot_num in slot_times:
+        for start_time_str, end_time_str, slot_num, start_12hr, end_12hr in slot_times:
             start_time = datetime.strptime(start_time_str, "%H:%M").time()
             end_time = datetime.strptime(end_time_str, "%H:%M").time()
 
@@ -2241,13 +2570,28 @@ async def get_current_slot():
                 current_slot = slot_num
                 break
 
+        # Format current time in 12-hour format
+        current_time_12hr = current_time.strftime("%I:%M %p").lstrip('0')
+        current_date_ist = ist_now.strftime("%Y-%m-%d")
+
         return {
             "success": True,
             "data": {
                 "current_slot": current_slot,
                 "current_day": current_day,
-                "current_time": current_time.strftime("%H:%M"),
-                "slot_times": slot_times
+                "current_time": current_time_12hr,
+                "current_date": current_date_ist,
+                "timezone": "IST",
+                "slot_times": [
+                    {
+                        "slot": slot_num,
+                        "start_24hr": start_time_str,
+                        "end_24hr": end_time_str,
+                        "start_12hr": start_12hr,
+                        "end_12hr": end_12hr
+                    }
+                    for start_time_str, end_time_str, slot_num, start_12hr, end_12hr in slot_times
+                ]
             },
             "message": f"Current slot: {current_slot}" if current_slot else "No active slot at this time"
         }

@@ -27,26 +27,42 @@ export default function ManageStudents() {
 
   async function fetchStudents() {
     try {
-      // Get all students
-      const { data: studentsData } = await dbHelpers.getStudents();
-      
-      if (studentsData) {
-        setStudents(studentsData);
+      // Get students enrolled in teacher's classes
+      const { data: teacherClasses } = await dbHelpers.getClassesByTeacher(userProfile.firebase_id);
 
-        // Get today's attendance for all students
-        const today = new Date().toISOString().split('T')[0];
-        const { data: todayAttendance } = await dbHelpers.getAllAttendance(today, today);
+      let allStudents = [];
+      if (teacherClasses) {
+        for (const classItem of teacherClasses) {
+          const { data: classStudents } = await dbHelpers.getClassStudents(classItem.id);
+          if (classStudents) {
+            // Add class info to each student
+            const studentsWithClass = classStudents.map(student => ({
+              ...student,
+              class_name: classItem.name,
+              class_id: classItem.id
+            }));
+            allStudents = [...allStudents, ...studentsWithClass];
+          }
+        }
+      }
 
-        // Create attendance lookup
-        const attendanceLookup = {};
-        todayAttendance?.forEach(record => {
-          attendanceLookup[record.user_id] = record;
-        });
+      setStudents(allStudents);
+
+      // Get today's attendance for teacher's classes
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayAttendance } = await dbHelpers.getAllAttendance(today, today, userProfile.firebase_id);
+
+      // Create attendance lookup by student_id and class_id
+      const attendanceLookup = {};
+      todayAttendance?.forEach(record => {
+        const key = `${record.student_id}_${record.class_id}`;
+        attendanceLookup[key] = record;
+      });
 
         setAttendanceData(attendanceLookup);
 
         // Fetch profile photos for all students
-        const photoPromises = studentsData.map(async (student) => {
+        const photoPromises = allStudents.map(async (student) => {
           try {
             const { data } = await dbHelpers.getProfilePhoto(student.firebase_id);
             return {
@@ -66,7 +82,6 @@ export default function ManageStudents() {
         });
 
         setProfilePhotos(photoLookup);
-      }
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
@@ -89,12 +104,13 @@ export default function ManageStudents() {
     setFilteredStudents(filtered);
   }
 
-  function getAttendanceStatus(studentId) {
-    const attendance = attendanceData[studentId];
+  function getAttendanceStatus(studentId, classId) {
+    const key = `${studentId}_${classId}`;
+    const attendance = attendanceData[key];
     if (attendance) {
       return {
         status: attendance.status,
-        time: new Date(attendance.timestamp).toLocaleTimeString(),
+        time: new Date(attendance.created_at).toLocaleTimeString(),
         present: attendance.status === 'present'
       };
     }
@@ -223,7 +239,7 @@ export default function ManageStudents() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
+                      Student & Class
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Student ID
@@ -244,10 +260,10 @@ export default function ManageStudents() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredStudents.map((student) => {
-                    const attendance = getAttendanceStatus(student.id);
-                    
+                    const attendance = getAttendanceStatus(student.id, student.class_id);
+
                     return (
-                      <tr key={student.id} className="hover:bg-gray-50">
+                      <tr key={`${student.id}_${student.class_id}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
@@ -268,7 +284,7 @@ export default function ManageStudents() {
                                 {student.name}
                               </div>
                               <div className="text-sm text-gray-500">
-                                Joined {new Date(student.created_at).toLocaleDateString()}
+                                {student.class_name} • Joined {new Date(student.created_at).toLocaleDateString()}
                               </div>
                             </div>
                           </div>
@@ -376,6 +392,11 @@ export default function ManageStudents() {
                   </div>
 
                   <div>
+                    <label className="text-sm font-medium text-gray-700">Class</label>
+                    <p className="text-gray-900">{selectedStudent.class_name}</p>
+                  </div>
+
+                  <div>
                     <label className="text-sm font-medium text-gray-700">Joined</label>
                     <p className="text-gray-900">{new Date(selectedStudent.created_at).toLocaleDateString()}</p>
                   </div>
@@ -383,12 +404,12 @@ export default function ManageStudents() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Today's Status</label>
                     <div className="flex items-center mt-1">
-                      {getAttendanceStatus(selectedStudent.id).present ? (
+                      {getAttendanceStatus(selectedStudent.id, selectedStudent.class_id).present ? (
                         <>
                           <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                           <span className="text-green-600 font-medium">Present</span>
                           <span className="text-sm text-gray-500 ml-2">
-                            at {getAttendanceStatus(selectedStudent.id).time}
+                            at {getAttendanceStatus(selectedStudent.id, selectedStudent.class_id).time}
                           </span>
                         </>
                       ) : (

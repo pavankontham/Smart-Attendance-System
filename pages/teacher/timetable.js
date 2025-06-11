@@ -7,17 +7,17 @@ import { Clock, Calendar, BookOpen, Users, Coffee, Edit3 } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const TIME_SLOTS = [
-  { slot: 1, start: '09:00', end: '09:50', label: '9:00 - 9:50 AM' },
-  { slot: 2, start: '09:50', end: '10:40', label: '9:50 - 10:40 AM' },
-  { slot: 'break1', start: '10:40', end: '10:50', label: 'Break (10 min)', isBreak: true },
-  { slot: 3, start: '10:50', end: '11:40', label: '10:50 - 11:40 AM' },
-  { slot: 4, start: '11:40', end: '12:30', label: '11:40 AM - 12:30 PM' },
-  { slot: 5, start: '12:30', end: '13:20', label: '12:30 - 1:20 PM' },
-  { slot: 6, start: '13:20', end: '14:10', label: '1:20 - 2:10 PM' },
-  { slot: 7, start: '14:10', end: '15:00', label: '2:10 - 3:00 PM' },
-  { slot: 'break2', start: '15:00', end: '15:10', label: 'Break (10 min)', isBreak: true },
-  { slot: 8, start: '15:10', end: '16:00', label: '3:10 - 4:00 PM' },
-  { slot: 9, start: '16:00', end: '16:50', label: '4:00 - 4:50 PM' },
+  { slot: 1, start: '9:00 AM', end: '9:50 AM', label: '9:00 - 9:50 AM' },
+  { slot: 2, start: '9:50 AM', end: '10:40 AM', label: '9:50 - 10:40 AM' },
+  { slot: 'break1', start: '10:40 AM', end: '10:50 AM', label: 'Break (10 min)', isBreak: true },
+  { slot: 3, start: '10:50 AM', end: '11:40 AM', label: '10:50 - 11:40 AM' },
+  { slot: 4, start: '11:40 AM', end: '12:30 PM', label: '11:40 AM - 12:30 PM' },
+  { slot: 5, start: '12:30 PM', end: '1:20 PM', label: '12:30 - 1:20 PM' },
+  { slot: 6, start: '1:20 PM', end: '2:10 PM', label: '1:20 - 2:10 PM' },
+  { slot: 7, start: '2:10 PM', end: '3:00 PM', label: '2:10 - 3:00 PM' },
+  { slot: 'break2', start: '3:00 PM', end: '3:10 PM', label: 'Break (10 min)', isBreak: true },
+  { slot: 8, start: '3:10 PM', end: '4:00 PM', label: '3:10 - 4:00 PM' },
+  { slot: 9, start: '4:00 PM', end: '4:50 PM', label: '4:00 - 4:50 PM' },
 ];
 
 export default function TeacherTimetable() {

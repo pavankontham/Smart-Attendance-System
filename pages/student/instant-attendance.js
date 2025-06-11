@@ -111,7 +111,7 @@ export default function StudentInstantAttendance() {
     }
   }
 
-  async function handleImageCapture(imageSrc) {
+  const handleImageCapture = useCallback(async (imageSrc) => {
     // Prevent multiple captures with debounce
     const now = Date.now();
     if (isProcessing || (now - lastCaptureTime) < 3000) {
@@ -126,36 +126,60 @@ export default function StudentInstantAttendance() {
       return;
     }
 
+    if (!currentUser?.uid) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    console.log('🔄 Starting face recognition process...');
+    console.log('👤 Current user:', currentUser.uid);
+    console.log('🔑 Validated data:', validatedData);
+    console.log('🔐 Password:', password);
     setIsProcessing(true);
     setLastResult(null);
 
     try {
+      console.log('📸 Converting image to blob...');
       // Convert base64 to blob
       const response = await fetch(imageSrc);
       const blob = await response.blob();
+      console.log('✅ Image converted to blob, size:', blob.size);
 
       // Create form data
       const formData = new FormData();
       formData.append('image', blob, 'face.jpg');
       formData.append('user_id', currentUser.uid); // Use Firebase UID
+      console.log('📤 Sending face recognition request for user:', currentUser.uid);
 
-      // Send to face recognition API
-      const apiResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          timeout: 30000, // 30 second timeout
-        }
-      );
+      // Send to face recognition API with timeout
+      console.log('📤 Making API call to:', `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`);
+      const apiResponse = await Promise.race([
+        axios.post(
+          `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            timeout: 30000, // 30 second timeout
+          }
+        ),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Face recognition timeout after 30 seconds')), 30000)
+        )
+      ]);
+
+      console.log('📥 Face recognition response:', apiResponse.data);
 
       if (apiResponse.data.success && apiResponse.data.recognized) {
+        console.log('✅ Face recognized, marking attendance...');
         // Face recognized, now mark attendance
         const { data, error } = await dbHelpers.markInstantAttendance(password, currentUser.uid);
 
+        console.log('📥 Attendance marking response:', { data, error });
+
         if (error) {
+          console.error('❌ Attendance marking failed:', error);
           let errorMessage = error.message;
           if (errorMessage.includes('expired')) {
             errorMessage = 'Password has expired during face recognition. Please ask your teacher for a new one.';
@@ -166,6 +190,7 @@ export default function StudentInstantAttendance() {
           toast.error(errorMessage);
           setLastResult({ success: false, message: errorMessage });
         } else {
+          console.log('🎉 Attendance marked successfully!');
           const successMessage = `Attendance marked successfully for ${validatedData.class_name}!`;
 
           // Show single success toast
@@ -195,6 +220,7 @@ export default function StudentInstantAttendance() {
           }, 2000);
         }
       } else {
+        console.log('❌ Face recognition failed:', apiResponse.data);
         // Face not recognized or liveness check failed
         let errorMessage = 'Face recognition failed. Please try again.';
 
@@ -208,21 +234,32 @@ export default function StudentInstantAttendance() {
         setLastResult({ success: false, message: errorMessage });
       }
     } catch (error) {
-      console.error('Error during face recognition:', error);
+      console.error('💥 Error during face recognition:', error);
       let errorMessage = 'Face recognition failed. Please try again.';
 
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        errorMessage = 'Network error during face recognition. Please check your connection.';
-      } else if (error.message.includes('timeout')) {
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
         errorMessage = 'Face recognition timed out. Please try again.';
+      } else if (error.response) {
+        // Server responded with error status
+        console.error('Server error response:', error.response.data);
+        errorMessage = error.response.data?.message || 'Server error during face recognition.';
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error('No response received:', error.request);
+        errorMessage = 'Network error during face recognition. Please check your connection.';
+      } else {
+        // Something else happened
+        console.error('Unexpected error:', error.message);
+        errorMessage = 'Unexpected error during face recognition. Please try again.';
       }
 
       toast.error(errorMessage);
       setLastResult({ success: false, message: errorMessage });
     } finally {
+      console.log('🔄 Face recognition process completed, resetting processing state');
       setIsProcessing(false);
     }
-  }
+  }, [password, currentUser?.uid, validatedData]);
 
   function goBackToPassword() {
     setStep(1);
@@ -333,6 +370,7 @@ export default function StudentInstantAttendance() {
   }, []);
 
   const capture = useCallback(async () => {
+    console.log('📸 Capture function called');
     const imageSrc = webcamRef.current.getScreenshot({
       width: 1280,
       height: 720,
@@ -340,23 +378,28 @@ export default function StudentInstantAttendance() {
     });
 
     if (imageSrc) {
+      console.log('📸 Image captured, checking quality...');
       const quality = await checkImageQuality(imageSrc);
       setImageQuality(quality);
+      console.log('📊 Image quality:', quality);
 
       // Only check brightness, skip blur/sharpness validation (same as enrollment)
       if (quality.brightness < 20) {
+        console.log('❌ Image too dark');
         toast.error('Image too dark. Please improve lighting or move to a brighter area.');
         resetLiveness();
         return;
       }
 
       if (quality.brightness > 240) {
+        console.log('❌ Image too bright');
         toast.error('Image too bright. Please reduce lighting or move away from direct light.');
         resetLiveness();
         return;
       }
 
       // Blur check disabled for better user experience - proceed directly to capture
+      console.log('✅ Image quality acceptable, proceeding to face recognition');
       toast.success('Image quality acceptable. Processing attendance...', {
         duration: 2000,
         style: {
@@ -366,8 +409,10 @@ export default function StudentInstantAttendance() {
       });
 
       handleImageCapture(imageSrc);
+    } else {
+      console.log('❌ No image captured from webcam');
     }
-  }, [checkImageQuality]);
+  }, [checkImageQuality, handleImageCapture]);
 
   const startLivenessCheck = () => {
     setLivenessStep(1);
@@ -585,14 +630,36 @@ export default function StudentInstantAttendance() {
                 {/* Control Buttons */}
                 <div className="mt-6 flex justify-center space-x-4">
                   {livenessStep === 0 && (
-                    <button
-                      onClick={startLivenessCheck}
-                      disabled={isProcessing}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Start Liveness Check
-                    </button>
+                    <>
+                      <button
+                        onClick={startLivenessCheck}
+                        disabled={isProcessing}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Start Liveness Check
+                      </button>
+
+                      {/* Quick Test Button - Bypass Liveness */}
+                      <button
+                        onClick={() => {
+                          console.log('🧪 Quick test - bypassing liveness detection');
+                          const imageSrc = webcamRef.current.getScreenshot({
+                            width: 1280,
+                            height: 720,
+                            quality: 0.95
+                          });
+                          if (imageSrc) {
+                            handleImageCapture(imageSrc);
+                          }
+                        }}
+                        disabled={isProcessing}
+                        className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Quick Test (Skip Liveness)
+                      </button>
+                    </>
                   )}
 
                   {livenessStep > 0 && livenessStep < 3 && (
@@ -609,6 +676,13 @@ export default function StudentInstantAttendance() {
                     <div className="flex items-center space-x-2 text-green-600">
                       <CheckCircle className="h-5 w-5" />
                       <span>Processing...</span>
+                    </div>
+                  )}
+
+                  {isProcessing && (
+                    <div className="flex items-center space-x-2 text-blue-600">
+                      <div className="loading-spinner h-5 w-5"></div>
+                      <span>Processing face recognition...</span>
                     </div>
                   )}
                 </div>

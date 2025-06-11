@@ -59,12 +59,25 @@ export default function TeacherAnalytics() {
           startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       }
 
-      // Get all students and attendance data
-      const { data: students } = await dbHelpers.getStudents();
-      const { data: attendanceData } = await dbHelpers.getAllAttendance(startDate, endDate);
+      // Get teacher's classes and students
+      const { data: teacherClasses } = await dbHelpers.getClassesByTeacher(userProfile.firebase_id);
 
-      // Process analytics
-      const analytics = processAnalyticsData(students || [], attendanceData || [], startDate, endDate);
+      // Get students enrolled in teacher's classes
+      let allStudents = [];
+      if (teacherClasses) {
+        for (const classItem of teacherClasses) {
+          const { data: classStudents } = await dbHelpers.getClassStudents(classItem.id);
+          if (classStudents) {
+            allStudents = [...allStudents, ...classStudents];
+          }
+        }
+      }
+
+      // Get attendance data for teacher's classes only
+      const { data: attendanceData } = await dbHelpers.getAllAttendance(startDate, endDate, userProfile.firebase_id);
+
+      // Process analytics with teacher's data only
+      const analytics = processAnalyticsData(allStudents || [], attendanceData || [], startDate, endDate);
       setAnalyticsData(analytics);
 
     } catch (error) {
@@ -82,8 +95,8 @@ export default function TeacherAnalytics() {
     const attendanceByStudent = {};
 
     attendanceData.forEach(record => {
-      const date = record.date;
-      const studentId = record.user_id;
+      const date = record.attendance_date;
+      const studentId = record.student_id;
 
       // By date
       if (!attendanceByDate[date]) {
@@ -96,7 +109,7 @@ export default function TeacherAnalytics() {
 
       // By student
       if (!attendanceByStudent[studentId]) {
-        attendanceByStudent[studentId] = { present: 0, total: 0, name: record.users?.name || 'Unknown' };
+        attendanceByStudent[studentId] = { present: 0, total: 0, name: record.student_name || 'Unknown' };
       }
       attendanceByStudent[studentId].total++;
       if (record.status === 'present') {

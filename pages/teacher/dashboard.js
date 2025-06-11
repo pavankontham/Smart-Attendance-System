@@ -26,34 +26,40 @@ export default function TeacherDashboard() {
   async function fetchDashboardData() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Get all students
-      const { data: students } = await dbHelpers.getStudents();
-      
-      // Get today's attendance
-      const { data: todayAttendance } = await dbHelpers.getAllAttendance(today, today);
-      
-      // Get recent attendance (last 7 days)
+
+      // Get teacher's classes to calculate total enrolled students
+      const { data: teacherClasses } = await dbHelpers.getClassesByTeacher(userProfile.firebase_id);
+
+      // Get today's attendance for teacher's classes
+      const { data: todayAttendance } = await dbHelpers.getAllAttendance(today, today, userProfile.firebase_id);
+
+      // Get recent attendance (last 7 days) for teacher's classes
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const { data: recentAttendance } = await dbHelpers.getAllAttendance(weekAgo, today);
-      
+      const { data: recentAttendance } = await dbHelpers.getAllAttendance(weekAgo, today, userProfile.firebase_id);
+
+      // Calculate total students enrolled in teacher's classes
+      let totalStudents = 0;
+      if (teacherClasses) {
+        // Use the student_count from the API response
+        totalStudents = teacherClasses.reduce((sum, classItem) => sum + (classItem.student_count || 0), 0);
+      }
+
       // Calculate stats
-      const totalStudents = students?.length || 0;
       const todayPresent = todayAttendance?.filter(record => record.status === 'present').length || 0;
-      const todayAbsent = totalStudents - todayPresent;
-      
+      const todayAbsent = todayAttendance?.filter(record => record.status === 'absent').length || 0;
+
       // Calculate overall attendance rate for the week
       const totalRecords = recentAttendance?.length || 0;
       const presentRecords = recentAttendance?.filter(record => record.status === 'present').length || 0;
       const attendanceRate = totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 100) : 0;
-      
+
       setDashboardData({
         totalStudents,
         todayPresent,
         todayAbsent,
         attendanceRate,
         recentAttendance: recentAttendance?.slice(0, 10) || [],
-        students: students || []
+        students: [] // Not needed for teacher dashboard
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -229,20 +235,20 @@ export default function TeacherDashboard() {
                     )}
                     <div>
                       <div className="font-medium text-gray-900">
-                        {record.users?.name || 'Unknown Student'}
+                        {record.student_name || 'Unknown Student'}
                       </div>
                       <div className="text-sm text-gray-600">
-                        ID: {record.users?.student_id || 'N/A'}
+                        ID: {record.student_roll_id || 'N/A'} • {record.class_name || 'Unknown Class'}
                       </div>
                     </div>
                   </div>
                   
                   <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {new Date(record.date).toLocaleDateString()}
+                    <div className="text-sm font-medium text-gray-900 capitalize">
+                      {record.status}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'N/A'}
+                    <div className="text-xs text-gray-500">
+                      {new Date(record.attendance_date).toLocaleDateString('en-IN')} • Slot {record.slot_number}
                     </div>
                   </div>
                 </div>

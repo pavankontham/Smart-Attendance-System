@@ -1,5 +1,5 @@
-# This is a root requirements.txt for Render deployment
-# The actual requirements are in backend/requirements.txt
+# Face Recognition Attendance System - Production Requirements
+# This is the main requirements.txt for deployment
 
 # Web Framework
 fastapi==0.104.1
@@ -24,7 +24,7 @@ requests==2.31.0
 # Environment & Configuration
 python-dotenv==1.0.0
 
-# Additional Dependencies for Production
+# Production Server
 gunicorn==21.2.0
 psutil==5.9.6
 
@@ -33,3 +33,17 @@ python-jose[cryptography]==3.3.0
 
 # Async Support
 aiofiles==23.2.1
+
+# Additional Production Dependencies
+httpx==0.25.2
+pydantic==2.5.0
+starlette==0.27.0
+
+# Logging and Monitoring
+structlog==23.2.0
+
+# Date and Time Handling
+python-dateutil==2.8.2
+
+# HTTP Client
+urllib3==2.1.0

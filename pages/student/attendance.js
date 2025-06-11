@@ -108,12 +108,19 @@ export default function MarkAttendance() {
       );
 
       if (apiResponse.data.success && apiResponse.data.recognized) {
+        // Get current slot for attendance marking
+        const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_FACE_API_URL}/api/current-slot`);
+        const currentSlotData = await currentSlotResponse.json();
+        const currentSlot = currentSlotData.data?.current_slot || 1;
+
         // Mark attendance in database for the selected class
         const { error } = await dbHelpers.markAttendance({
           student_firebase_id: currentUser.uid,
           class_id: selectedClass.id,
+          slot_number: currentSlot,
           status: 'present',
-          marked_by: 'face_recognition'
+          marked_by: 'face_recognition',
+          teacher_firebase_id: selectedClass.teacher_firebase_id || 'system'
         });
 
         if (error) {

@@ -59,11 +59,11 @@ export default function AttendanceHistory() {
 
     // Date range filter
     if (dateRange.startDate) {
-      filtered = filtered.filter(record => record.date >= dateRange.startDate);
+      filtered = filtered.filter(record => record.attendance_date >= dateRange.startDate);
     }
 
     if (dateRange.endDate) {
-      filtered = filtered.filter(record => record.date <= dateRange.endDate);
+      filtered = filtered.filter(record => record.attendance_date <= dateRange.endDate);
     }
 
     // Status filter
@@ -71,11 +71,13 @@ export default function AttendanceHistory() {
       filtered = filtered.filter(record => record.status === statusFilter);
     }
 
-    // Search filter (by date)
+    // Search filter (by date, class name, or subject)
     if (searchTerm) {
       filtered = filtered.filter(record =>
-        record.date.includes(searchTerm) ||
-        new Date(record.date).toLocaleDateString().includes(searchTerm)
+        record.attendance_date.includes(searchTerm) ||
+        new Date(record.attendance_date).toLocaleDateString().includes(searchTerm) ||
+        (record.class_name && record.class_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (record.subject && record.subject.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -106,12 +108,15 @@ export default function AttendanceHistory() {
   function exportData() {
     // Simple CSV export
     const csvContent = [
-      ['Date', 'Status', 'Time', 'Day'],
+      ['Date', 'Class', 'Subject', 'Slot', 'Status', 'Time', 'Day'],
       ...filteredData.map(record => [
-        record.date,
+        record.attendance_date,
+        `"${record.class_name || 'Unknown Class'}"`,
+        record.subject || 'Unknown Subject',
+        record.slot_number || 'N/A',
         record.status,
-        record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : '-',
-        new Date(record.date).toLocaleDateString('en-US', { weekday: 'long' })
+        record.created_at ? new Date(record.created_at).toLocaleTimeString() : '-',
+        new Date(record.attendance_date).toLocaleDateString('en-US', { weekday: 'long' })
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -312,28 +317,33 @@ export default function AttendanceHistory() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                      Date & Class
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time
+                      Time & Slot
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Day
+                      Subject
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredData.map((record) => {
-                    const date = new Date(record.date);
-                    const timestamp = record.timestamp ? new Date(record.timestamp) : null;
-                    
+                    const date = new Date(record.attendance_date);
+                    const timestamp = record.created_at ? new Date(record.created_at) : null;
+
                     return (
                       <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {date.toLocaleDateString()}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {date.toLocaleDateString()}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {record.class_name || 'Unknown Class'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -350,11 +360,21 @@ export default function AttendanceHistory() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {timestamp ? timestamp.toLocaleTimeString() : '-'}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {timestamp ? timestamp.toLocaleTimeString() : '-'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Slot {record.slot_number || 'N/A'}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {date.toLocaleDateString('en-US', { weekday: 'long' })}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {record.subject || 'Unknown Subject'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {date.toLocaleDateString('en-US', { weekday: 'long' })}
+                          </div>
                         </td>
                       </tr>
                     );

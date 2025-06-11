@@ -35,14 +35,37 @@ export default function AttendanceReports() {
 
   async function fetchInitialData() {
     try {
-      // Get all students
-      const { data: studentsData } = await dbHelpers.getStudents();
-      setStudents(studentsData || []);
-      
+      // Get students from teacher's classes only
+      const { data: teacherClasses } = await dbHelpers.getClassesByTeacher(userProfile.firebase_id);
+
+      let allStudents = [];
+      if (teacherClasses) {
+        for (const classItem of teacherClasses) {
+          const { data: classStudents } = await dbHelpers.getClassStudents(classItem.id);
+          if (classStudents) {
+            // Add class info to each student and avoid duplicates
+            const studentsWithClass = classStudents.map(student => ({
+              ...student,
+              class_name: classItem.name,
+              class_id: classItem.id
+            }));
+
+            // Filter out duplicates based on student ID
+            studentsWithClass.forEach(student => {
+              if (!allStudents.find(s => s.id === student.id)) {
+                allStudents.push(student);
+              }
+            });
+          }
+        }
+      }
+
+      setStudents(allStudents);
+
       // Set default date range (last 30 days)
       const endDate = new Date().toISOString().split('T')[0];
       const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
+
       setFilters(prev => ({
         ...prev,
         startDate,
@@ -58,25 +81,27 @@ export default function AttendanceReports() {
   async function fetchReportData() {
     try {
       setLoading(true);
-      
+
+      // Get attendance data for teacher's classes only
       let { data: attendanceData } = await dbHelpers.getAllAttendance(
         filters.startDate,
-        filters.endDate
+        filters.endDate,
+        userProfile.firebase_id // Filter by teacher
       );
-      
+
       // Filter by student if selected
       if (filters.studentId) {
-        attendanceData = attendanceData?.filter(record => record.user_id === filters.studentId);
+        attendanceData = attendanceData?.filter(record => record.student_id === filters.studentId);
       }
-      
+
       setReportData(attendanceData || []);
-      
+
       // Calculate stats
       const totalRecords = attendanceData?.length || 0;
       const presentCount = attendanceData?.filter(record => record.status === 'present').length || 0;
-      const absentCount = totalRecords - presentCount;
+      const absentCount = attendanceData?.filter(record => record.status === 'absent').length || 0;
       const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
-      
+
       setStats({
         totalRecords,
         presentCount,
@@ -134,16 +159,18 @@ export default function AttendanceReports() {
   function exportToCSV() {
     if (reportData.length === 0) return;
     
-    const headers = ['Date', 'Student Name', 'Student ID', 'Email', 'Status', 'Time'];
+    const headers = ['Date', 'Student Name', 'Student ID', 'Email', 'Class', 'Slot', 'Status', 'Time'];
     const csvContent = [
       headers.join(','),
       ...reportData.map(record => [
-        record.date,
-        `"${record.users?.name || 'Unknown'}"`,
-        record.users?.student_id || 'N/A',
-        record.users?.email || 'N/A',
+        record.attendance_date,
+        `"${record.student_name || 'Unknown'}"`,
+        record.student_roll_id || 'N/A',
+        record.student_email || 'N/A',
+        `"${record.class_name || 'Unknown Class'}"`,
+        record.slot_number || 'N/A',
         record.status,
-        record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'N/A'
+        record.created_at ? new Date(record.created_at).toLocaleTimeString() : 'N/A'
       ].join(','))
     ].join('\n');
     
@@ -344,6 +371,9 @@ export default function AttendanceReports() {
                       Student ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Class & Slot
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -355,18 +385,26 @@ export default function AttendanceReports() {
                   {reportData.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {new Date(record.date).toLocaleDateString()}
+                        {new Date(record.attendance_date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {record.users?.name || 'Unknown'}
+                          {record.student_name || 'Unknown'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {record.users?.email || 'N/A'}
+                          {record.student_email || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.users?.student_id || 'N/A'}
+                        {record.student_roll_id || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {record.class_name || 'Unknown Class'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Slot {record.slot_number}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -384,7 +422,7 @@ export default function AttendanceReports() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'N/A'}
+                        {record.created_at ? new Date(record.created_at).toLocaleTimeString() : 'N/A'}
                       </td>
                     </tr>
                   ))}

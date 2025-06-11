@@ -122,9 +122,15 @@ export default function InstantAttendance() {
 
   async function markAttendanceManually(studentId, status) {
     try {
+      // Get current slot
+      const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_FACE_API_URL}/api/current-slot`);
+      const currentSlotData = await currentSlotResponse.json();
+      const currentSlot = currentSlotData.data?.current_slot || 1;
+
       const { error } = await dbHelpers.markAttendance({
         student_firebase_id: studentId,
         class_id: selectedClass.id,
+        slot_number: currentSlot,
         status: status,
         marked_by: 'teacher',
         teacher_firebase_id: currentUser.uid
@@ -145,7 +151,10 @@ export default function InstantAttendance() {
         }
         toast.error(errorMessage);
       } else {
-        toast.success(`Attendance marked as ${status}`);
+        // Find student name for better feedback
+        const student = attendanceData.find(s => s.firebase_id === studentId);
+        const studentName = student?.name || 'Student';
+        toast.success(`${studentName} marked as ${status} for Slot ${currentSlot}`);
         fetchAttendanceData();
       }
     } catch (error) {

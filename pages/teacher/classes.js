@@ -14,6 +14,7 @@ export default function TeacherClasses() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [showAddStudentsModal, setShowAddStudentsModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
   const [existingSubjects, setExistingSubjects] = useState([]);
 
   useEffect(() => {
@@ -128,6 +129,11 @@ export default function TeacherClasses() {
     setShowAddStudentsModal(true);
   }
 
+  async function manageClass(classItem) {
+    setSelectedClass(classItem);
+    setShowManageModal(true);
+  }
+
   function copyClassCode(classCode) {
     navigator.clipboard.writeText(classCode);
     toast.success('Class code copied to clipboard!');
@@ -233,7 +239,10 @@ export default function TeacherClasses() {
                       Add Students
                     </button>
                   </div>
-                  <button className="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium py-2 px-3 rounded-lg transition-colors text-sm">
+                  <button
+                    onClick={() => manageClass(classItem)}
+                    className="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium py-2 px-3 rounded-lg transition-colors text-sm"
+                  >
                     <Settings className="h-4 w-4 mr-1 inline" />
                     Manage Class
                   </button>
@@ -286,6 +295,52 @@ export default function TeacherClasses() {
                 toast.error('Failed to add students');
               }
             }}
+          />
+        )}
+
+        {/* Manage Class Modal */}
+        {showManageModal && selectedClass && (
+          <ManageClassModal
+            classData={selectedClass}
+            onClose={() => setShowManageModal(false)}
+            onUpdate={async (updatedData) => {
+              try {
+                const { data, error } = await dbHelpers.updateClass(
+                  selectedClass.id,
+                  updatedData,
+                  currentUser.uid
+                );
+                if (error) {
+                  toast.error(error.message);
+                } else {
+                  toast.success('Class updated successfully!');
+                  setShowManageModal(false);
+                  fetchClasses(); // Refresh classes
+                }
+              } catch (error) {
+                console.error('Error updating class:', error);
+                toast.error('Failed to update class');
+              }
+            }}
+            onDelete={async () => {
+              try {
+                const { data, error } = await dbHelpers.deleteClass(
+                  selectedClass.id,
+                  currentUser.uid
+                );
+                if (error) {
+                  toast.error(error.message);
+                } else {
+                  toast.success('Class deleted successfully!');
+                  setShowManageModal(false);
+                  fetchClasses(); // Refresh classes
+                }
+              } catch (error) {
+                console.error('Error deleting class:', error);
+                toast.error('Failed to delete class');
+              }
+            }}
+            existingSubjects={existingSubjects}
           />
         )}
       </div>
@@ -592,3 +647,143 @@ function AddStudentsModal({ classData, onClose, onSubmit }) {
   );
 }
 
+// Manage Class Modal Component
+function ManageClassModal({ classData, onClose, onUpdate, onDelete, existingSubjects }) {
+  const [formData, setFormData] = useState({
+    name: classData.name || '',
+    subject: classData.subject || '',
+    description: classData.description || ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  async function handleUpdate(e) {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.subject.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onUpdate(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    setIsSubmitting(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900">Manage Class</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {!showDeleteConfirm ? (
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Class Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Mathematics 101"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subject *
+              </label>
+              <SubjectInput
+                value={formData.subject}
+                onChange={(value) => setFormData({ ...formData, subject: value })}
+                placeholder="e.g., Mathematics, Physics"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                existingSubjects={existingSubjects}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows="3"
+                placeholder="Brief description of the class..."
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                <Trash2 className="h-4 w-4 mr-2 inline" />
+                Delete Class
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? 'Updating...' : 'Update Class'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-8 w-8 text-red-600" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">Delete Class</h4>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete "{classData.name}"? This action cannot be undone and will remove all associated data.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? 'Deleting...' : 'Delete Class'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
