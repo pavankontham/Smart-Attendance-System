@@ -37,14 +37,23 @@ def convert_to_12hr_format(time_str):
     except:
         return time_str
 
-# Try to import face recognition, but make it optional for now
+# Import OpenCV for basic image processing
+import cv2
+
+# MediaPipe-only mode - no heavy face_recognition library
+FACE_RECOGNITION_AVAILABLE = False
+print("Running in MediaPipe-only mode for deployment compatibility.")
+
+# Import MediaPipe for face detection
 try:
-    import face_recognition
-    import cv2
-    FACE_RECOGNITION_AVAILABLE = True
-except ImportError:
-    FACE_RECOGNITION_AVAILABLE = False
-    print("Face recognition not available. Running in demo mode.")
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+    mp_face_detection = mp.solutions.face_detection
+    mp_drawing = mp.solutions.drawing_utils
+    print("✅ MediaPipe face detection loaded successfully!")
+except ImportError as e:
+    MEDIAPIPE_AVAILABLE = False
+    print(f"❌ MediaPipe not available: {e}")
 
 # Import our enhanced liveness detection
 try:
@@ -109,6 +118,109 @@ except Exception as e:
 os.makedirs("temp", exist_ok=True)
 os.makedirs("encodings", exist_ok=True)
 
+def detect_faces_mediapipe(image: np.ndarray):
+    """Detect faces using MediaPipe"""
+    if not MEDIAPIPE_AVAILABLE:
+        return []
+
+    try:
+        # Convert RGB to BGR for MediaPipe
+        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        with mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5) as face_detection:
+            results = face_detection.process(image_bgr)
+
+            faces = []
+            if results.detections:
+                for detection in results.detections:
+                    # Get bounding box
+                    bbox = detection.location_data.relative_bounding_box
+                    h, w, _ = image.shape
+
+                    # Convert to absolute coordinates (top, right, bottom, left format like face_recognition)
+                    left = int(bbox.xmin * w)
+                    top = int(bbox.ymin * h)
+                    right = int((bbox.xmin + bbox.width) * w)
+                    bottom = int((bbox.ymin + bbox.height) * h)
+
+                    faces.append((top, right, bottom, left))
+
+            return faces
+    except Exception as e:
+        print(f"MediaPipe face detection error: {e}")
+        return []
+
+def generate_face_encoding(image: np.ndarray, face_location=None):
+    """Generate a simple face encoding using image features"""
+    try:
+        # Convert to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        if face_location:
+            top, right, bottom, left = face_location
+            face_region = gray[top:bottom, left:right]
+        else:
+            face_region = gray
+
+        # Resize to standard size
+        face_resized = cv2.resize(face_region, (128, 128))
+
+        # Generate simple features (this is a basic approach)
+        # In production, you might want to use a proper face embedding model
+        features = []
+
+        # Histogram features
+        hist = cv2.calcHist([face_resized], [0], None, [32], [0, 256])
+        features.extend(hist.flatten())
+
+        # LBP features (simplified)
+        lbp_features = []
+        for i in range(1, face_resized.shape[0]-1):
+            for j in range(1, face_resized.shape[1]-1):
+                center = face_resized[i, j]
+                code = 0
+                code |= (face_resized[i-1, j-1] >= center) << 7
+                code |= (face_resized[i-1, j] >= center) << 6
+                code |= (face_resized[i-1, j+1] >= center) << 5
+                code |= (face_resized[i, j+1] >= center) << 4
+                code |= (face_resized[i+1, j+1] >= center) << 3
+                code |= (face_resized[i+1, j] >= center) << 2
+                code |= (face_resized[i+1, j-1] >= center) << 1
+                code |= (face_resized[i, j-1] >= center) << 0
+                lbp_features.append(code)
+
+        # Take first 96 LBP features to make total 128
+        features.extend(lbp_features[:96])
+
+        # Ensure exactly 128 features
+        if len(features) > 128:
+            features = features[:128]
+        elif len(features) < 128:
+            features.extend([0] * (128 - len(features)))
+
+        return np.array(features, dtype=np.float64)
+
+    except Exception as e:
+        print(f"Face encoding generation error: {e}")
+        return np.zeros(128, dtype=np.float64)
+
+def compare_face_encodings(encoding1, encoding2, tolerance=0.6):
+    """Compare two face encodings"""
+    try:
+        # Calculate Euclidean distance
+        distance = np.linalg.norm(encoding1 - encoding2)
+
+        # Normalize distance (simple approach)
+        normalized_distance = distance / 1000.0  # Adjust based on your encoding range
+
+        # Check if faces match
+        matches = normalized_distance <= tolerance
+
+        return matches, normalized_distance
+    except Exception as e:
+        print(f"Face comparison error: {e}")
+        return False, 1.0
+
 def load_image_from_upload(file: UploadFile) -> np.ndarray:
     """Load image from uploaded file"""
     try:
@@ -130,14 +242,7 @@ def load_image_from_upload(file: UploadFile) -> np.ndarray:
         raise HTTPException(status_code=400, detail=f"Error loading image: {str(e)}")
 
 def enhanced_liveness_check(image: np.ndarray) -> dict:
-    """Enhanced liveness detection using MediaPipe and comprehensive analysis"""
-    if not FACE_RECOGNITION_AVAILABLE:
-        return {
-            "passed": True,
-            "confidence": 0.95,
-            "message": "Liveness check skipped (demo mode)"
-        }
-
+    """Enhanced liveness detection using MediaPipe"""
     # Use enhanced liveness detection if available
     if LIVENESS_DETECTION_AVAILABLE and liveness_detector:
         try:
@@ -152,17 +257,13 @@ def enhanced_liveness_check(image: np.ndarray) -> dict:
             print(f"Enhanced liveness detection error: {e}")
             # Fall back to basic check
 
-    # Fallback to basic liveness check
+    # Fallback to MediaPipe-based liveness check
     try:
         # Convert to grayscale for analysis
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-        # Skip blur detection for better user experience - only check basic requirements
-        # laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-        # Blur check disabled to improve user experience
-
-        # Check if face is detected
-        face_locations = face_recognition.face_locations(image)
+        # Check if face is detected using MediaPipe
+        face_locations = detect_faces_mediapipe(image)
         if len(face_locations) != 1:
             return {
                 "passed": False,
@@ -205,7 +306,7 @@ def enhanced_liveness_check(image: np.ndarray) -> dict:
         return {
             "passed": True,
             "confidence": 0.8,
-            "message": "Basic liveness check passed"
+            "message": "MediaPipe liveness check passed"
         }
     except Exception as e:
         print(f"Liveness check error: {e}")
@@ -218,6 +319,17 @@ def enhanced_liveness_check(image: np.ndarray) -> dict:
 @app.get("/")
 async def root():
     return {"message": "Face Recognition API is running"}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment"""
+    return {
+        "status": "healthy",
+        "mediapipe_available": MEDIAPIPE_AVAILABLE,
+        "face_recognition_mode": "MediaPipe-only",
+        "supabase_available": SUPABASE_AVAILABLE,
+        "liveness_detection_available": LIVENESS_DETECTION_AVAILABLE
+    }
 
 @app.post("/enroll")
 async def enroll_face(
@@ -238,30 +350,26 @@ async def enroll_face(
                 "liveness_details": liveness_result.get("details", {})
             }
 
-        if not FACE_RECOGNITION_AVAILABLE:
-            # Demo mode - return success with dummy encoding
-            encoding_list = [0.0] * 128  # Dummy 128-dimensional encoding
-        else:
-            # Get face encodings
-            face_encodings = face_recognition.face_encodings(image_array)
+        # Use MediaPipe for face detection and encoding
+        face_locations = detect_faces_mediapipe(image_array)
 
-            if len(face_encodings) == 0:
-                return {
-                    "success": False,
-                    "message": "No face detected in the image. Please try again."
-                }
+        if len(face_locations) == 0:
+            return {
+                "success": False,
+                "message": "No face detected in the image. Please try again."
+            }
 
-            if len(face_encodings) > 1:
-                return {
-                    "success": False,
-                    "message": "Multiple faces detected. Please ensure only one face is visible."
-                }
+        if len(face_locations) > 1:
+            return {
+                "success": False,
+                "message": "Multiple faces detected. Please ensure only one face is visible."
+            }
 
-            # Get the face encoding
-            face_encoding = face_encodings[0]
+        # Generate face encoding using MediaPipe detection
+        face_encoding = generate_face_encoding(image_array, face_locations[0])
 
-            # Convert to list for JSON serialization and ensure it's a proper numpy array
-            encoding_list = np.array(face_encoding).tolist()
+        # Convert to list for JSON serialization
+        encoding_list = face_encoding.tolist()
 
         # Save to Supabase
         if not SUPABASE_AVAILABLE:
@@ -366,22 +474,12 @@ async def recognize_face(
                 "liveness_details": liveness_result.get("details", {})
             }
         
-        if not FACE_RECOGNITION_AVAILABLE:
-            # Demo mode - always recognize successfully
-            return {
-                "success": True,
-                "recognized": True,
-                "liveness_check": True,
-                "confidence": 0.95,
-                "message": "Face recognized successfully (demo mode)"
-            }
+        # Use MediaPipe for face detection and encoding
+        print("🔍 Extracting face encodings with MediaPipe...")
+        face_locations = detect_faces_mediapipe(image_array)
+        print(f"✅ Found {len(face_locations)} face(s)")
 
-        # Get face encodings from the image
-        print("🔍 Extracting face encodings...")
-        face_encodings = face_recognition.face_encodings(image_array)
-        print(f"✅ Found {len(face_encodings)} face encoding(s)")
-
-        if len(face_encodings) == 0:
+        if len(face_locations) == 0:
             print("❌ No face detected in image")
             return {
                 "success": True,
@@ -390,8 +488,8 @@ async def recognize_face(
                 "message": "No face detected in the image."
             }
 
-        if len(face_encodings) > 1:
-            print(f"❌ Multiple faces detected: {len(face_encodings)}")
+        if len(face_locations) > 1:
+            print(f"❌ Multiple faces detected: {len(face_locations)}")
             return {
                 "success": True,
                 "recognized": False,
@@ -399,8 +497,8 @@ async def recognize_face(
                 "message": "Multiple faces detected. Please ensure only one face is visible."
             }
 
-        # Get the face encoding
-        unknown_encoding = face_encodings[0]
+        # Generate face encoding using MediaPipe detection
+        unknown_encoding = generate_face_encoding(image_array, face_locations[0])
         
         # Get stored encoding from database
         if not SUPABASE_AVAILABLE:
@@ -447,15 +545,14 @@ async def recognize_face(
             stored_encoding = np.array(result.data[0]["encoding"])
             print(f"✅ Stored encoding shape: {stored_encoding.shape}")
 
-            # Compare faces
+            # Compare faces using our custom MediaPipe-based comparison
             print("🔍 Comparing faces...")
-            matches = face_recognition.compare_faces([stored_encoding], unknown_encoding, tolerance=0.6)
-            face_distances = face_recognition.face_distance([stored_encoding], unknown_encoding)
+            matches, distance = compare_face_encodings(stored_encoding, unknown_encoding, tolerance=0.6)
 
-            print(f"✅ Face comparison completed - Match: {matches[0]}, Distance: {face_distances[0]}")
+            print(f"✅ Face comparison completed - Match: {matches}, Distance: {distance}")
 
-            if matches[0]:
-                confidence = 1 - face_distances[0]
+            if matches:
+                confidence = 1 - distance
                 print(f"🎉 Face recognized successfully! Confidence: {confidence}")
                 return {
                     "success": True,
@@ -465,12 +562,12 @@ async def recognize_face(
                     "message": "Face recognized successfully"
                 }
             else:
-                print(f"❌ Face not recognized. Distance: {face_distances[0]}")
+                print(f"❌ Face not recognized. Distance: {distance}")
                 return {
                     "success": True,
                     "recognized": False,
                     "liveness_check": True,
-                    "confidence": float(1 - face_distances[0]),
+                    "confidence": float(1 - distance),
                     "message": "Face not recognized"
                 }
 
