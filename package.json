@@ -8,6 +8,7 @@
     "start": "next start",
     "build:static": "next build",
     "build:render": "npm install && npm run build",
+    "debug": "node debug-build.js",
     "lint": "next lint"
   },
   "dependencies": {
