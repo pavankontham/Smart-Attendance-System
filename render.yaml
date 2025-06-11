@@ -26,12 +26,13 @@ services:
         sync: false # Set this to your frontend URL
 
   # Frontend Static Site (Next.js)
-  - type: static
+  - type: web
     name: face-recognition-frontend
+    env: static
     buildCommand: |
       npm install
       npm run build
-    publishPath: ./out
+    staticPublishPath: ./out
     envVars:
       - key: NODE_VERSION
         value: "18.17.0"
