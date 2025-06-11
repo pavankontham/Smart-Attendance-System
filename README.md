@@ -488,7 +488,29 @@ We love hearing about new ideas! When suggesting features:
 
 ---
 
-## 🌐 Deployment Guide (Render)
+## 🌐 Deployment Guide
+
+### 🚀 MediaPipe Deployment (Recommended)
+
+For production deployment, we recommend using MediaPipe instead of the full face_recognition library for better compatibility and performance:
+
+**Why MediaPipe?**
+- ✅ Smaller footprint and faster builds
+- ✅ Lower memory usage for hosting platforms
+- ✅ Better compatibility with Render and similar services
+- ✅ Still provides real face detection capabilities
+
+**Quick MediaPipe Deployment:**
+```bash
+# Use the MediaPipe deployment script
+scripts/deploy-mediapipe.bat  # Windows
+# or
+./scripts/deploy-mediapipe.sh  # Linux/Mac
+```
+
+📖 **See [MediaPipe Deployment Guide](docs/MEDIAPIPE_DEPLOYMENT.md) for complete instructions.**
+
+### 🌐 Render Deployment
 
 This section provides step-by-step instructions for deploying your Face Recognition Attendance System to Render.
 
