@@ -100,46 +100,44 @@ app.add_middleware(
 supabase_url = os.getenv("SUPABASE_URL", "https://qkrusouqwmrpernncabq.supabase.co")
 supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcnVzb3Vxd21ycGVybm5jYWJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTA0Nzk2OSwiZXhwIjoyMDY0NjIzOTY5fQ.yP8WLKdMDuGZpwrTeU2kYSCUtq6wSG4GsOp4A62CdW0")
 
-# Create Supabase client with proper configuration
+# Create Supabase client with version-compatible configuration
 try:
-    # Create client with minimal options for compatibility
-    from supabase import Client, ClientOptions
+    # Try the most basic client creation first (works with all versions)
+    print("🔄 Attempting Supabase connection...")
 
-    # Create client options without problematic parameters
-    options = ClientOptions()
-    supabase = Client(supabase_url, supabase_key, options)
+    # Create client with minimal options to avoid version conflicts
+    from supabase import create_client
+    supabase = create_client(
+        supabase_url=supabase_url,
+        supabase_key=supabase_key
+    )
 
     # Test the connection with a simple query
+    print("🔄 Testing database connection...")
     test_result = supabase.table("users").select("id").limit(1).execute()
+
     SUPABASE_AVAILABLE = True
     print("✅ Supabase connected successfully!")
     print(f"✅ Database test query returned {len(test_result.data) if test_result.data else 0} records")
-except ImportError as ie:
-    print(f"❌ Supabase import error: {ie}")
-    print("Trying alternative client creation...")
-    try:
-        # Fallback to basic client creation
-        supabase = create_client(supabase_url, supabase_key)
-        test_result = supabase.table("users").select("id").limit(1).execute()
-        SUPABASE_AVAILABLE = True
-        print("✅ Supabase connected with fallback method!")
-    except Exception as e2:
-        print(f"❌ Fallback connection also failed: {e2}")
-        print("Running in demo mode without database")
-        supabase = None
-        SUPABASE_AVAILABLE = False
+
 except Exception as e:
     print(f"❌ Supabase connection failed: {e}")
-    print("Trying basic client creation...")
+    print("🔄 Attempting simplified connection...")
+
     try:
-        # Try basic client creation without options
+        # Try with even more basic approach - just positional arguments
         supabase = create_client(supabase_url, supabase_key)
+
+        # Test the connection
         test_result = supabase.table("users").select("id").limit(1).execute()
         SUPABASE_AVAILABLE = True
         print("✅ Supabase connected with basic client!")
+
     except Exception as e2:
         print(f"❌ Basic connection also failed: {e2}")
-        print("Running in demo mode without database")
+        print("⚠️  Running in demo mode without database")
+        print("💡 Note: Face recognition will still work, but data won't be saved")
+        print("💡 For production deployment, this will be resolved with proper Supabase version")
         supabase = None
         SUPABASE_AVAILABLE = False
 

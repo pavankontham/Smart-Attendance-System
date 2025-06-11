@@ -87,8 +87,8 @@ export default function Home() {
           </h2>
 
           <p className="mt-6 text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
-            Revolutionary face recognition technology with AI-powered liveness detection.
-            Secure, contactless, and incredibly accurate attendance management for the modern world.
+            Powered by Google's MediaPipe technology with advanced liveness detection.
+            Lightweight, fast, and incredibly accurate attendance management for the modern world.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
@@ -139,10 +139,10 @@ export default function Home() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-white mb-4">
-              AI-Powered Security
+              MediaPipe Security
             </h3>
             <p className="text-blue-100 leading-relaxed">
-              Advanced liveness detection, anti-spoofing technology, and encrypted data storage ensure maximum security and accuracy.
+              Google's MediaPipe with advanced liveness detection, lightweight processing, and encrypted data storage for maximum security.
             </p>
           </div>
         </div>
@@ -176,8 +176,8 @@ export default function Home() {
               Transform Your Attendance Management
             </h3>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of institutions already using our AI-powered attendance system.
-              Register today and experience the future of attendance tracking.
+              Join thousands of institutions already using our MediaPipe-powered attendance system.
+              Register today and experience lightweight, fast face recognition technology.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/register" className="group bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 hover:from-yellow-300 hover:to-orange-300 font-bold py-4 px-8 rounded-xl transition-all transform hover:scale-105 shadow-xl flex items-center justify-center">
@@ -203,13 +203,13 @@ export default function Home() {
                 <span className="text-xl font-bold text-white">Smart Attendance</span>
               </div>
               <p className="text-blue-100 mb-4">
-                Leading the future of attendance management with AI-powered face recognition technology.
+                Leading the future of attendance management with Google's MediaPipe technology - lightweight, fast, and deployment-ready.
               </p>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-blue-100">
-                <li><Link href="/features/face-recognition" className="hover:text-white transition-colors cursor-pointer">Face Recognition</Link></li>
+                <li><Link href="/features/mediapipe-detection" className="hover:text-white transition-colors cursor-pointer">MediaPipe Detection</Link></li>
                 <li><Link href="/features/liveness-detection" className="hover:text-white transition-colors cursor-pointer">Liveness Detection</Link></li>
                 <li><Link href="/features/analytics" className="hover:text-white transition-colors cursor-pointer">Real-time Analytics</Link></li>
                 <li><Link href="/features/reports" className="hover:text-white transition-colors cursor-pointer">Export Reports</Link></li>
