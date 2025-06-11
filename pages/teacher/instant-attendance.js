@@ -123,7 +123,7 @@ export default function InstantAttendance() {
   async function markAttendanceManually(studentId, status) {
     try {
       // Get current slot
-      const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_FACE_API_URL}/api/current-slot`);
+      const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/current-slot`);
       const currentSlotData = await currentSlotResponse.json();
       const currentSlot = currentSlotData.data?.current_slot || 1;
 

@@ -152,10 +152,10 @@ export default function StudentInstantAttendance() {
       console.log('📤 Sending face recognition request for user:', currentUser.uid);
 
       // Send to face recognition API with timeout
-      console.log('📤 Making API call to:', `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`);
+      console.log('📤 Making API call to:', `${process.env.NEXT_PUBLIC_API_URL}/recognize`);
       const apiResponse = await Promise.race([
         axios.post(
-          `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`,
+          `${process.env.NEXT_PUBLIC_API_URL}/recognize`,
           formData,
           {
             headers: {

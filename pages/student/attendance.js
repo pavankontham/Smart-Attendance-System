@@ -98,7 +98,7 @@ export default function MarkAttendance() {
 
       // Send to face recognition API
       const apiResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/recognize`,
+        `${process.env.NEXT_PUBLIC_API_URL}/recognize`,
         formData,
         {
           headers: {
@@ -109,7 +109,7 @@ export default function MarkAttendance() {
 
       if (apiResponse.data.success && apiResponse.data.recognized) {
         // Get current slot for attendance marking
-        const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_FACE_API_URL}/api/current-slot`);
+        const currentSlotResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/current-slot`);
         const currentSlotData = await currentSlotResponse.json();
         const currentSlot = currentSlotData.data?.current_slot || 1;
 

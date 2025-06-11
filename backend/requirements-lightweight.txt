@@ -1,3 +1,6 @@
+# Ultra-Lightweight Requirements for Deployment
+# No face_recognition, no dlib, no heavy dependencies
+
 # Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -9,16 +12,13 @@ requests==2.31.0
 python-dotenv==1.0.0
 pytz==2024.1
 
-# Computer Vision (MediaPipe Only - No Heavy Dependencies)
+# Computer Vision (MediaPipe Only)
 opencv-python-headless==4.8.1.78
 mediapipe==0.10.21
 numpy==1.24.3
 
 # Image Processing
 Pillow==10.1.0
-
-# Production Server
-gunicorn==21.2.0
 
 # Security & CORS
 python-jose[cryptography]==3.3.0

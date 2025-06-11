@@ -46,7 +46,7 @@ export default function EnrollFace() {
   async function checkEnrollmentStatus() {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/face-encodings/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/face-encodings/${currentUser.uid}`
       );
       if (response.data.success) {
         setEnrollmentStatus(response.data);
@@ -61,7 +61,7 @@ export default function EnrollFace() {
   async function fetchEnrolledPhoto() {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/enrolled-image/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/enrolled-image/${currentUser.uid}`
       );
       if (response.data.success && response.data.enrolled_image_url) {
         setEnrolledPhoto(response.data.enrolled_image_url);
@@ -74,7 +74,7 @@ export default function EnrollFace() {
   async function fetchEnrolledImage() {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/enrolled-image/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/enrolled-image/${currentUser.uid}`
       );
       if (response.data.success && response.data.enrolled_image_url) {
         setEnrolledImage(response.data.enrolled_image_url);
@@ -97,7 +97,7 @@ export default function EnrollFace() {
       formData.append('user_id', currentUser.uid);
 
       const apiResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/enroll`,
+        `${process.env.NEXT_PUBLIC_API_URL}/enroll`,
         formData,
         {
           headers: {
@@ -154,7 +154,7 @@ export default function EnrollFace() {
     try {
       setIsProcessing(true);
       const response = await axios.delete(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/face-encodings/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/face-encodings/${currentUser.uid}`
       );
 
       if (response.data.success) {

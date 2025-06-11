@@ -45,7 +45,7 @@ export default function StudentProfile() {
 
       // Fetch enrollment status
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/face-encodings/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/face-encodings/${currentUser.uid}`
       );
       if (response.data.success) {
         setEnrollmentStatus(response.data);
@@ -71,7 +71,7 @@ export default function StudentProfile() {
     try {
       setIsProcessing(true);
       const response = await axios.delete(
-        `${process.env.NEXT_PUBLIC_FACE_API_URL}/api/face-encodings/${currentUser.uid}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/face-encodings/${currentUser.uid}`
       );
 
       if (response.data.success) {
